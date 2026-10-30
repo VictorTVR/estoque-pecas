@@ -28,7 +28,7 @@ td.ok{color:var(--ok);font-weight:700}td.wa{background:color-mix(in srgb,var(--w
 .bar{display:flex;flex-wrap:wrap;gap:10px;margin-bottom:12px;align-items:end}.bar>*{flex:1 1 160px}
 .hint{color:var(--mu);font-size:13px;margin:-4px 0 12px}.cc{width:90px}td input{padding:4px 6px}
 #toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--ok);color:#fff;padding:10px 18px;border-radius:8px;display:none;z-index:9}#toast.e{background:var(--er)}
-</style></head><body>
+</style><script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script></head><body>
 <header><h1>📦 Controle de Estoque de Peças</h1><span id="st"></span></header>
 <nav id="nav"></nav><main id="main"></main><div id="toast"></div>
 <script>
@@ -216,10 +216,34 @@ function ep(c,f,v){D.parts[c][f]=v;D.parts[c].t=Date.now();save()}
 /* AJUSTES */
 function vAj(){return `<div class="p"><h2>Sincronização com o GitHub</h2><p class="hint">Use um token com permissão de Contents (leitura e escrita) só no repositório de dados privado. Fica salvo apenas neste aparelho.</p><div class="f"><label>Seu nome (aparece nas movimentações)<input id="au" value="${esc(cfg.u||"")}"></label><label>Repositório de dados (usuario/repositorio)<input id="ar" value="${esc(cfg.repo||"")}"></label><label>Arquivo<input id="ap" value="${esc(cfg.path||"estoque.json")}"></label><label>Token do GitHub<input id="at" type="password" value="${esc(cfg.tk||"")}"></label></div><button class="b" onclick="saveCfg()">Salvar e sincronizar</button></div>
 <div class="p"><h2>Garagens</h2><div class="bar"><label>Nova garagem<input id="ag"></label><button class="b" style="flex:0 0 auto" onclick="addG()">Adicionar</button></div><p class="hint">Atuais: ${G().map(esc).join(", ")}</p></div>
-<div class="p"><h2>Importar saldo da planilha</h2><p class="hint">Copie as colunas da planilha e cole abaixo: código ⇥ quantidade (ou código ⇥ descrição ⇥ quantidade). Cada linha vira uma entrada de saldo inicial.</p><div class="bar"><label>Garagem<select id="ig">${opts(G())}</select></label></div><textarea id="it" rows="6"></textarea><br><br><button class="b v" onclick="impS()">Importar saldo</button></div>`}
+<div class="p"><h2>Carregar saldo por planilha</h2><p class="hint">Aceita Excel (.xlsx, .xlsm, .xlsb, .xls), OpenDocument (.ods), CSV, TSV e TXT. Também dá para colar células copiadas da planilha.</p><div class="bar"><label>Arquivo<input type="file" id="if" accept=".xlsx,.xlsm,.xlsb,.xls,.ods,.csv,.tsv,.txt" onchange="loadF(this)"></label></div><label>Ou cole aqui<textarea id="it" rows="3"></textarea></label><br><button class="b s" onclick="setIM({Colado:parseT($('it').value)})">Ler texto colado</button><div id="im"></div></div>`}
 function saveCfg(){cfg={u:$("au").value.trim(),repo:$("ar").value.trim(),path:$("ap").value.trim()||"estoque.json",tk:$("at").value.trim()};try{localStorage.setItem("est_cfg",JSON.stringify(cfg))}catch(e){}msg("Salvo.");sync()}
 function addG(){const g=$("ag").value.trim();if(!g||G().includes(g))return msg("Nome vazio ou já existe.",1);D.g.push(g);save();render()}
-function impS(){let n=0;const g=$("ig").value;$("it").value.split("\n").forEach(l=>{const p=l.split(/\t|;/).map(x=>x.trim());if(p.length<2)return;const c=p[0],q=parseInt(p[p.length-1]);if(!c||!(q>0))return;
- if(!D.parts[c]){D.parts[c]={d:p.length>2?p[1]:"",m:0,t:Date.now()}}log("entrada",c,g,q,"Saldo inicial (planilha)");n++});save();msg(n+" linha(s) importada(s).");render()}
+let IM=null;
+function loadF(inp){const f=inp.files[0];if(!f)return;const r=new FileReader();
+ r.onload=()=>{try{if(/\.(csv|tsv|txt)$/i.test(f.name)){let s;try{s=new TextDecoder("utf-8",{fatal:true}).decode(r.result)}catch(e){s=new TextDecoder("windows-1252").decode(r.result)}setIM({[f.name]:parseT(s)})}
+  else{if(!window.XLSX)return msg("A biblioteca de planilhas não carregou (é preciso internet).",1);const wb=XLSX.read(r.result,{type:"array"}),s={};wb.SheetNames.forEach(n=>s[n]=XLSX.utils.sheet_to_json(wb.Sheets[n],{header:1,raw:true,defval:""}));setIM(s)}}catch(e){msg("Não consegui ler este arquivo.",1)}};r.readAsArrayBuffer(f)}
+function parseT(t){const L=t.split(/\r?\n/).filter(x=>x.trim()),d=["\t",";",",","|"].sort((a,b)=>L[0].split(b).length-L[0].split(a).length)[0];
+ return L.map(x=>{const o=[];let c="",q=0;for(const ch of x){if(ch==='"')q=!q;else if(ch===d&&!q){o.push(c);c=""}else c+=ch}o.push(c);return o.map(v=>v.trim())})}
+function setIM(s){const k=Object.keys(s);if(!k.length||!s[k[0]].length)return msg("Arquivo vazio.",1);IM={s,n:k[0],g:G()[0],m:"add"};pickSheet()}
+function pickSheet(){IM.rows=IM.s[IM.n];let h=IM.rows.findIndex(r=>r.filter(x=>String(x).trim()!=="").length>=2);IM.h=h<0?0:h;autoMap();drawIM()}
+function autoMap(){const H=(IM.rows[IM.h]||[]).map(x=>String(x).toLowerCase()),f=re=>H.findIndex(x=>re.test(x));let c=f(/material|pe[çc]a|item|produto|sku/);if(c<0)c=f(/c[óo]d/);IM.cc=c<0?0:c;IM.cd=f(/descri/);IM.cq=f(/saldo|qtd|quant|estoque/);IM.cg=-1}
+function drawIM(){const R=IM.rows,hd=R[IM.h]||[],nc=Math.max(1,...R.slice(0,30).map(r=>r.length));
+ const co=(sel,none)=>(none?`<option value="-1" ${sel<0?"selected":""}>${none}</option>`:"")+Array.from({length:nc},(_,i)=>`<option value="${i}" ${i===sel?"selected":""}>${i+1}: ${esc(String(hd[i]??"").slice(0,30)||"(sem título)")}</option>`).join("");
+ const sl=(l,k,none)=>`<label>${l}<select onchange="IM.${k}=+this.value;drawIM()">${co(IM[k],none)}</select></label>`;
+ const pv=R.slice(IM.h+1,IM.h+7).map(r=>`<tr><td>${esc(r[IM.cc]??"")}</td><td>${IM.cd>=0?esc(r[IM.cd]??""):""}</td><td>${IM.cq>=0?esc(r[IM.cq]??""):""}</td><td>${IM.cg>=0?esc(r[IM.cg]??""):""}</td></tr>`).join("");
+ $("im").innerHTML=`<hr><div class="f">${Object.keys(IM.s).length>1?`<label>Aba<select onchange="IM.n=this.value;pickSheet()">${opts(Object.keys(IM.s),0,IM.n)}</select></label>`:""}<label>Linha do cabeçalho<input type="number" min="1" value="${IM.h+1}" onchange="IM.h=Math.max(0,+this.value-1);autoMap();drawIM()"></label>${sl("Coluna do código","cc")}${sl("Coluna da descrição (opcional)","cd","— nenhuma —")}${sl("Coluna da quantidade/saldo","cq","— escolher —")}${sl("Coluna da garagem (opcional)","cg","— usar a garagem ao lado —")}<label>Garagem de destino<select onchange="IM.g=this.value">${opts(G(),0,IM.g)}</select></label><label>Como aplicar<select onchange="IM.m=this.value"><option value="add" ${IM.m==="add"?"selected":""}>Somar como entrada</option><option value="set" ${IM.m==="set"?"selected":""}>Definir saldo (ajusta a diferença)</option></select></label></div><p class="hint">${R.length-IM.h-1} linha(s) de dados. Prévia:</p><div class="w"><table><thead><tr><th>Código</th><th>Descrição</th><th>Quantidade</th><th>Garagem</th></tr></thead><tbody>${pv}</tbody></table></div><p class="hint">Somar: lança entradas (ignora quantidades negativas). Definir: iguala o saldo do sistema ao da planilha. Se a garagem vier por coluna, o nome precisa bater com uma garagem cadastrada.</p><button class="b v" onclick="runIM()">Importar</button>`}
+function runIM(){if(IM.cq<0)return msg("Escolha a coluna da quantidade.",1);
+ const nk=s=>String(s).toLowerCase().replace(/[^a-z0-9]/g,""),gm={};G().forEach(g=>gm[nk(g)]=g);
+ const num=v=>typeof v==="number"?v:parseFloat(String(v).trim().replace(/\s/g,"").replace(/,/,".").replace(/\.(?=\d{3}\b)/g,""));
+ const acc={},dd={};let bad=0;
+ IM.rows.slice(IM.h+1).forEach(r=>{const c=String(r[IM.cc]??"").trim();if(!c)return;let q=num(r[IM.cq]);if(isNaN(q))return;
+  const g=IM.cg>=0?gm[nk(r[IM.cg])]:IM.g;if(!g){bad++;return}
+  acc[g+"|"+c]=(acc[g+"|"+c]||0)+Math.round(q);if(IM.cd>=0&&!dd[c])dd[c]=String(r[IM.cd]??"").trim()});
+ let n=0;for(const k in acc){const[g,c]=k.split("|"),q=acc[k];
+  if(!D.parts[c])D.parts[c]={d:dd[c]||"",m:0,t:Date.now()};else if(!D.parts[c].d&&dd[c]){D.parts[c].d=dd[c];D.parts[c].t=Date.now()}
+  if(IM.m==="add"){if(q>0){log("entrada",c,g,q,"Saldo importado (planilha)");n++}}
+  else{const d=q-bal(c,g);if(d){log("conf",c,g,d,"Saldo definido pela planilha: "+q);n++}}}
+ save();IM=null;msg(`${n} movimentação(ões) lançada(s).`+(bad?` ${bad} linha(s) com garagem não reconhecida.`:""),bad&&!n);render()}
 calc();render();if(cfg.tk)sync();else setSt("");
 </script></body></html>
