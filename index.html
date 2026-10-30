@@ -1,0 +1,225 @@
+<!DOCTYPE html><html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"><title>Estoque de Peças</title><style>
+:root{--bg:#f3f5f8;--cd:#fff;--tx:#1b2430;--mu:#6b7785;--bd:#dde3ea;--pr:#1f6feb;--ok:#2e9e5b;--wa:#e0a100;--er:#d63c3c;--vi:#7a4fd1;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);color-scheme:light}
+@media(prefers-color-scheme:dark){:root:not([data-theme=light]){--bg:#10151c;--cd:#1a212b;--tx:#e8edf3;--mu:#92a0b0;--bd:#2b3644;--pr:#5b9bff;color-scheme:dark}}
+:root[data-theme=dark]{--bg:#10151c;--cd:#1a212b;--tx:#e8edf3;--mu:#92a0b0;--bd:#2b3644;--pr:#5b9bff;color-scheme:dark}
+*{box-sizing:border-box}html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;background:var(--bg);color:var(--tx);font:15px/1.4 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+header{display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between;padding:14px 18px;background:var(--cd);border-bottom:1px solid var(--bd)}
+h1{font-size:19px;margin:0}h2{font-size:16px;margin:0 0 12px}
+#st{font-size:13px;color:var(--mu)}#st.ok{color:var(--ok)}#st.err{color:var(--er)}
+nav{display:flex;flex-wrap:wrap;gap:6px 18px;padding:12px 18px}
+.grp{display:flex;flex-wrap:wrap;gap:6px;align-items:center}.grp>small{color:var(--mu);font-weight:600;margin-right:2px}
+.t{border:1px solid var(--bd);background:var(--cd);color:var(--tx);padding:8px 14px;border-radius:8px;cursor:pointer;font:inherit}
+.t.on{background:var(--pr);border-color:var(--pr);color:#fff}.t.x.on{background:var(--vi);border-color:var(--vi)}
+main{padding:0 18px 30px;max-width:1200px;margin:auto}
+.p{background:var(--cd);border:1px solid var(--bd);border-radius:12px;padding:16px;margin-top:12px}
+.f{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;margin-bottom:14px}
+label{display:flex;flex-direction:column;gap:4px;font-size:13px;color:var(--mu)}
+input,select,textarea{font:inherit;padding:8px;border:1px solid var(--bd);border-radius:8px;background:var(--bg);color:var(--tx);width:100%}
+.b{background:var(--ok);color:#fff;border:0;padding:10px 18px;border-radius:8px;cursor:pointer;font:inherit;font-weight:600}
+.b.s{background:var(--cd);color:var(--tx);border:1px solid var(--bd);font-weight:400;padding:6px 10px}.b.v{background:var(--vi)}.b.r{background:var(--er)}
+.ks{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px;margin-top:12px}
+.k{background:var(--cd);border:1px solid var(--bd);border-left:6px solid var(--pr);border-radius:10px;padding:12px;cursor:pointer;display:flex;flex-direction:column}
+.k.on{outline:2px solid var(--pr)}.k span{font-size:22px;font-weight:700}.k small{color:var(--mu)}
+.w{overflow-x:auto}table{border-collapse:collapse;width:100%;min-width:560px}
+th,td{text-align:left;padding:8px 10px;border-bottom:1px solid var(--bd);white-space:nowrap}th{font-size:12px;color:var(--mu);text-transform:uppercase}
+td.ok{color:var(--ok);font-weight:700}td.wa{background:color-mix(in srgb,var(--wa) 25%,transparent);font-weight:700}td.er{background:color-mix(in srgb,var(--er) 22%,transparent);color:var(--er);font-weight:700}
+.pos{color:var(--ok);font-weight:700}.neg{color:var(--er);font-weight:700}
+.bar{display:flex;flex-wrap:wrap;gap:10px;margin-bottom:12px;align-items:end}.bar>*{flex:1 1 160px}
+.hint{color:var(--mu);font-size:13px;margin:-4px 0 12px}.cc{width:90px}td input{padding:4px 6px}
+#toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--ok);color:#fff;padding:10px 18px;border-radius:8px;display:none;z-index:9}#toast.e{background:var(--er)}
+</style></head><body>
+<header><h1>📦 Controle de Estoque de Peças</h1><span id="st"></span></header>
+<nav id="nav"></nav><main id="main"></main><div id="toast"></div>
+<script>
+const SENHA="1234"; // senha provisória dos Ajustes (troque aqui)
+const CAT=`10151834-00|Pinça de freio esquerda
+10151837-00|CONJUNTO DE MONTAGEM FREIO TRA
+10151849-00|K9W DISCO DE FREIO DIANTEIRO
+10667428-00|PASTILHA DE FREIO
+10888174-00|CONJUNTO DE BOMBA DE AGUA ELET
+11045633-00|CONJUNTO DO PEDAL DO ACELERADO
+11050916-00|CONJ DO SENSOR DE ALTURA K9
+11057342-00|UNIDADE DE CONTROLE ELETRONICO
+11105480-00|CONJUNTO DE TRANSMISSAO DA DIR
+11128836-00|FILTRO
+11166736-00|RESISTOR PRE CARGA
+11189882-00|AMORTECEDOR DIANTEIRO
+11190275-00|BOMBA ELETRICA DE OLEO
+11190990-00|BOMBA ELETRICA DE OLEO
+11195313-00|CILINDRO
+11253568-00|CAIXA DE DISTRIBUÇÃO DE ALTA
+11275710-00|ANEL D ENGRENAGEM
+11371680-00|K9W APARELHO INTERRUPTOR PARA
+11447480-00|K9W APARELHO INTERRUPTOR PARA
+11489931-00|CONJUNTO DO ARO DA CORREIA
+11521934-00|BOMBA DE OLEO DE DIRECAO ELETR
+11537727-00|CONECTOR MACHO DE TRANSICAO
+11537728-00|CORPO DO CONECTOR PLUG-IN S
+11537730-00|CONECTOR MACHO DE
+11537731-00|CONECTOR MACHO DE TRANSICAO
+11537732-00|CONECTOR MACHO EM T EM ACO
+11537733-00|CONECTOR MACHO EM T EM ACO LI
+11540081-00|JUNTA DE VEDAÇÃO
+11564260-00|ROLAMENTO DIANTEIRO DO CONTRAE
+11630936-00|K9W BUCHA DE BORRACHA VULCANIZ
+11763398-00|RELE DE FORCA 24VDC 300A
+11859525-00|MODULO COLETOR DE DADOS
+11859526-00|MODULO COLETOR DE DADOS
+11873544-00|K9W-3703010A_BATERIA 12V AGM 70AH CCA 76
+11956838-00|BARRA ESTABILIZADORA DIANTEIRA
+11989852-00|CONJUNTO DE SECADOR DE AR
+12003006-00|
+12054760-00|CONJUNTO DO CONTROLADOR AUXILI
+12280710-00|FILTO DO AR
+12379895-00|CONJ DO CONTROLADOR DO MOTOR D
+12379915-00|CONJ DO CONTROLADOR DO MOTOR D
+12449065-00|MODULO CONVERSION
+12487873-00|FILTRO SILENCIADOR DE COMPRESS
+12505716-00|FILTRO DO AR
+12505726-00|FILTRO DE OLEO
+12581098-00|CONJ AMORTECEDOR TRASEIRO
+12661310-00|CONJ AMORTECEDOR DIANTEIRO
+12672449-00|CONJ BARRA ESTABILIZA TRASEIRA
+12688180-00|CONJ AMORTECEDOR DIANTEIRO
+12689503-00|VEDACAO DE OLEO DO ROLAMENTO 1 (99071)
+12689505-00|ROLAMENTO 100X148X135
+12689507-00|ANEL TRAVA ROLAMENTO 125*148.3 (99070)
+12697348-00|CONJ. DO COMPRESSOR DE AR
+12776161-00|COMPONETENTE 2 EIXO ESQ
+12776163-00|CJ EIXO ESQ
+12776165-00|COMPONENTE 1 EIXO DIR
+12776166-00|COMPONETENTE 3 EIXO ESQ
+12776167-00|CJ 3 EIXO DIREITO
+12776168-00|COMPONETENTE 2 EIXO DIR
+12780127-00|CONEXAO DIR. (CONJUNTO)
+12966950-00|CJ CABECOTE COMPRESSOR DE AR 4KW
+12966964-00|CONJ 4 PASTILHAS FREIO BC21S01
+12992533-00|ROLAMENTO DE ROLOS CILINDRICOS
+13007718-00|PINCA FREIO DIANTEIRO ESQUERDO
+13007719-00|PINCA FREIO DIANTEIRO DIREITO
+13080366-00|SISTEMA TERMICO DE BATERIA
+13104909-01|TUBO(AZUL)
+13245356-00|Chicote do motor esquerdo
+13245357-00|Chicote do motor direito
+13333531-00|BUCHA BARRA ESTABILIZADORA DIANT
+13522202-00|B13S01-3509050_CONJ CABECOTE COMP AR
+13591897-00|CONJ CONTROLADOR DE COMUNICACAO DE CARGA
+13909096-00|Interruptor de combinacao
+13949110-00|MODULO DE COMUNICAÇÃO
+14011925-00|MODULO DE COMUNICAÇÃO
+14632460-00|FLUIDO DE DIREÇÃ HIDRAULICA
+1467127-00|TOMADA DE CARREGADOR
+14737830-00|Montagem da caixa de juncao de distribui - HVDB
+14752504-00|CABO ELETRICO COM PEÇAS DE CONEXÃO, COM
+14752518-00|CABO ELETRICO COM PEÇAS DE CONEXÃO, COM
+15268732-00|CABO ELETRICO CONDUTOR DE ENERGIA DE COB
+15268733-00|CABO ELETRICO CONDUTOR DE ENERGIA DE COB
+15268782-00|CABO ELETRICO COM TENSÃO DE 614V
+15268783-00|CABO ELETRICO, COM TENSÃO DE 614V, MUNID
+15299760-00|CONTROLADORA
+15299766-00|CONTROLADOR DO GERENCIAMENTO DA BATERIA
+15299767-00|CONTROLADOR DO GERENCIAMENTO DA BATERIA
+15299768-00|CONTROLADOR DO SISTEMA DE GERENCIAMENTO
+16386944-00|CHICOTE ELÉTRICO DO MOTOR
+20175489-00|FILTRO SECADOR DE AR SIST PNEU MANN FILT
+20175678-00|ROLAMENTO 6211UC3 NSK
+20175796-00|CJ CAMERA AR TRASEIRA
+20175967-00|ROLAMENTO 6213 NSK
+20254377-00|BOLSÃO AR FIRESTONE TRAS D9
+20254378-00|BOLSÃO AR FIRESTONE DIANT D9`.trim().split("\n").map(l=>l.split("|"));
+let D={g:["AutoBless","Pêssego","NorteBuss G1","NorteBuss G2","CampoBelo"],parts:{},log:[]};
+CAT.forEach(([c,d])=>D.parts[c]={d,m:0,t:0});
+let cfg={};try{cfg=JSON.parse(localStorage.getItem("est_cfg"))||{}}catch(e){}
+try{const x=JSON.parse(localStorage.getItem("estoque_v2"));if(x&&x.parts&&x.log)D=merge(D,x)}catch(e){}
+let S={},tab="saldo",sg="",sq="",sf="",cg="",hk="",hg="",hq="",pq="",ok=0;
+const $=i=>document.getElementById(i),G=()=>D.g;
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const opts=(a,all,sel)=>(all?'<option value="">Todas</option>':'')+a.map(x=>`<option ${x===sel?"selected":""}>${esc(x)}</option>`).join("");
+const bal=(c,g)=>S[c+"|"+g]||0,now=()=>new Date().toISOString(),uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,7);
+const fd=s=>new Date(s).toLocaleString("pt-BR",{dateStyle:"short",timeStyle:"short"});
+function calc(){S={};D.log.forEach(m=>{const k=m.c+"|"+m.g;S[k]=(S[k]||0)+m.q})}
+function merge(a,b){const o={g:[...a.g],parts:{...a.parts},log:[...a.log]};
+ (b.g||[]).forEach(x=>{if(!o.g.includes(x))o.g.push(x)});
+ for(const c in b.parts){const p=b.parts[c];if(!o.parts[c]||(p.t||0)>(o.parts[c].t||0))o.parts[c]=p}
+ const ids=new Set(o.log.map(m=>m.i));(b.log||[]).forEach(m=>{if(!ids.has(m.i))o.log.push(m)});
+ o.log.sort((x,y)=>x.t<y.t?-1:1);return o}
+function ahead(a,b){const ids=new Set((b.log||[]).map(m=>m.i));return a.log.some(m=>!ids.has(m.i))||a.g.some(x=>!(b.g||[]).includes(x))||Object.keys(a.parts).some(c=>!b.parts[c]||(a.parts[c].t||0)>(b.parts[c].t||0))}
+function persist(){try{localStorage.setItem("estoque_v2",JSON.stringify(D))}catch(e){}}
+let tm;function save(){calc();persist();clearTimeout(tm);tm=setTimeout(()=>sync(),1200)}
+function msg(t,e){const o=$("toast");o.textContent=t;o.className=e?"e":"";o.style.display="block";clearTimeout(o._t);o._t=setTimeout(()=>o.style.display="none",3000)}
+function log(k,c,g,q,n,r){D.log.push({i:uid(),t:now(),k,c,g,q,n:n||"",u:cfg.u||"",r})}
+/* SINCRONIZAÇÃO GITHUB */
+const api=()=>`https://api.github.com/repos/${cfg.repo}/contents/${cfg.path||"estoque.json"}`;
+const hd=()=>({Authorization:"Bearer "+cfg.tk,Accept:"application/vnd.github+json"});
+const b64e=s=>btoa(unescape(encodeURIComponent(s))),b64d=s=>decodeURIComponent(escape(atob(s.replace(/\s/g,""))));
+function setSt(k,t){const o=$("st");o.className=k;o.textContent=k==="ok"?"● sincronizado "+new Date().toLocaleTimeString("pt-BR",{timeStyle:"short"}):k==="err"?"⚠ "+t:k==="sync"?"↻ sincronizando…":"○ só neste aparelho"}
+let busy=0;
+async function sync(n=0){
+ if(!cfg.tk||!cfg.repo){setSt("");return}if(busy)return;busy=1;setSt("sync");
+ try{const r=await fetch(api(),{headers:hd(),cache:"no-store"});let sha,R=null,push=1;
+  if(r.status===200){const j=await r.json();sha=j.sha;R=JSON.parse(b64d(j.content));push=ahead(D,R)}else if(r.status!==404)throw new Error("GitHub "+r.status+" (confira token/repositório)");
+  const before=D.log.length+Object.keys(D.parts).length+D.g.length;
+  if(R)D=merge(D,R);calc();persist();
+  if(push){const p=await fetch(api(),{method:"PUT",headers:hd(),body:JSON.stringify({message:"estoque "+now(),content:b64e(JSON.stringify(D)),sha})});
+   if(p.status===409||p.status===422){busy=0;if(n<3)return sync(n+1);throw new Error("conflito, tente de novo")}
+   if(!p.ok)throw new Error("GitHub "+p.status)}
+  setSt("ok");if(before!==D.log.length+Object.keys(D.parts).length+D.g.length&&!/INPUT|SELECT|TEXTAREA/.test(document.activeElement.tagName))render()
+ }catch(e){setSt("err",e.message)}busy=0}
+setInterval(()=>sync(),30000);document.addEventListener("visibilitychange",()=>{if(!document.hidden)sync()});
+/* NAVEGAÇÃO */
+const KN={entrada:"Entrada",saida:"Saída",conf:"Conferência",transf:"Transferência",estorno:"Estorno"};
+const T={saldo:["📦 Saldo",vSaldo],ent:["⬇ Entrada",vEnt],sai:["⬆ Saída",vSai],conf:["✔ Conferência",vConf],tr:["🔁 Transferir peças",vTr],hist:["🕘 Histórico",vHist],pec:["🔩 Peças",vPec],aj:["⚙ Ajustes",vAj]};
+function go(t){if(t==="aj"&&!ok){if(prompt("Senha dos Ajustes:")!==SENHA)return;ok=1}tab=t;render()}
+function render(){
+ const b=(k,x)=>`<button class="t ${x||""} ${tab===k?"on":""}" onclick="go('${k}')">${T[k][0]}</button>`;
+ $("nav").innerHTML=`<div class="grp"><small>ESTOQUE</small>${["saldo","ent","sai","conf"].map(k=>b(k)).join("")}</div><div class="grp"><small>ENTRE GARAGENS</small>${["tr","hist"].map(k=>b(k,"x")).join("")}</div><div class="grp"><small>CADASTRO</small>${["pec","aj"].map(k=>b(k)).join("")}</div>`;
+ if(!cg)cg=G()[0];$("main").innerHTML=T[tab][1]();if(tab==="sai")hint();if(tab==="tr")hintT()}
+const dl=()=>`<datalist id="pl">${Object.keys(D.parts).sort().map(c=>`<option value="${esc(c)}">${esc(D.parts[c].d)}</option>`).join("")}</datalist>`;
+/* SALDO */
+function vSaldo(){
+ const cards=G().map(g=>{let t=0,n=0;for(const c in D.parts){const x=bal(c,g);t+=x;if(x>0)n++}return `<div class="k ${sg===g?"on":""}" onclick="sg=sg==='${g}'?'':'${g}';render()"><b>${g}</b><span>${t} un.</span><small>${n} peça(s) com saldo</small></div>`}).join("");
+ return `<div class="ks">${cards}</div><div class="p"><div class="bar"><label>Buscar peça<input value="${esc(sq)}" oninput="sq=this.value;$('sb').innerHTML=rowsS()" placeholder="código ou descrição"></label><label>Mostrar<select onchange="sf=this.value;$('sb').innerHTML=rowsS()"><option value="">Todas as peças</option><option value="pos" ${sf==="pos"?"selected":""}>Só com saldo</option><option value="zero" ${sf==="zero"?"selected":""}>Zeradas</option></select></label></div><div class="w"><table><thead><tr><th>Código</th><th>Peça</th><th>Mín.</th>${(sg?[sg]:G()).map(g=>`<th>${g}</th>`).join("")}${sg?"":"<th>Total</th>"}</tr></thead><tbody id="sb">${rowsS()}</tbody></table></div><p class="hint">Vermelho: zerado · Amarelo: no mínimo ou abaixo · Verde: ok. Clique numa garagem para filtrar.</p></div>`}
+function rowsS(){const gs=sg?[sg]:G(),q=sq.toLowerCase();
+ return Object.keys(D.parts).sort().filter(c=>(c+" "+D.parts[c].d).toLowerCase().includes(q)).map(c=>{const p=D.parts[c],v=gs.map(g=>bal(c,g)),t=v.reduce((a,b)=>a+b,0);return{c,p,v,t}}).filter(r=>!sf||(sf==="pos"?r.t>0:r.t<=0)).map(r=>`<tr><td><b>${esc(r.c)}</b></td><td>${esc(r.p.d)}</td><td>${r.p.m}</td>${r.v.map(x=>`<td class="${x<=0?"er":x<=r.p.m?"wa":"ok"}">${x}</td>`).join("")}${sg?"":`<td><b>${r.t}</b></td>`}</tr>`).join("")||'<tr><td colspan=9>Nenhuma peça.</td></tr>'}
+/* ENTRADA / SAÍDA */
+function vEnt(){return `<div class="p"><h2>Dar entrada de peças</h2><div class="f"><label>Garagem<select id="eg">${opts(G())}</select></label><label>Código da peça<input id="ec" list="pl" oninput="fill()" autocomplete="off"></label><label>Descrição<input id="ed"></label><label>Estoque mínimo<input id="em" type="number" min="0" value="0"></label><label>Quantidade<input id="eq" type="number" min="1"></label><label>NF / Observação<input id="en"></label></div><button class="b" onclick="addE()">Registrar entrada</button></div>${dl()}`}
+function fill(){const p=D.parts[$("ec").value.trim()];if(p){$("ed").value=p.d;$("em").value=p.m}}
+function addE(){const c=$("ec").value.trim(),q=parseInt($("eq").value),d=$("ed").value.trim();
+ if(!c||!(q>0))return msg("Informe código e quantidade.",1);if(!D.parts[c]&&!d)return msg("Peça nova: informe a descrição.",1);
+ D.parts[c]={d:d||D.parts[c].d,m:parseInt($("em").value)||0,t:Date.now()};log("entrada",c,$("eg").value,q,$("en").value);save();msg("Entrada registrada.");render()}
+function vSai(){return `<div class="p"><h2>Dar saída de peças</h2><div class="f"><label>Garagem<select id="sg2" onchange="hint()">${opts(G())}</select></label><label>Código da peça<input id="sc" list="pl" oninput="hint()" autocomplete="off"></label><label>Quantidade<input id="sq2" type="number" min="1"></label><label>OS / Prefixo do veículo<input id="sr"></label><label>Técnico<input id="st2" value="${esc(cfg.u||"")}"></label></div><p class="hint" id="sh"></p><button class="b r" onclick="addS()">Registrar saída</button></div>${dl()}`}
+function hint(){const c=$("sc").value.trim(),p=D.parts[c];$("sh").textContent=p?`${p.d} — saldo em ${$("sg2").value}: ${bal(c,$("sg2").value)}`:""}
+function addS(){const c=$("sc").value.trim(),g=$("sg2").value,q=parseInt($("sq2").value);
+ if(!D.parts[c])return msg("Peça não cadastrada.",1);if(!(q>0))return msg("Informe a quantidade.",1);if(q>bal(c,g))return msg(`Saldo insuficiente (${bal(c,g)}).`,1);
+ log("saida",c,g,-q,[$("sr").value&&"OS/Veíc.: "+$("sr").value,$("st2").value&&"Téc.: "+$("st2").value].filter(Boolean).join(" · "));save();msg("Saída registrada.");render()}
+/* CONFERÊNCIA */
+function vConf(){const rows=Object.keys(D.parts).sort().map(c=>`<tr><td><b>${esc(c)}</b></td><td>${esc(D.parts[c].d)}</td><td>${bal(c,cg)}</td><td><input class="cc" type="number" min="0" data-c="${esc(c)}" oninput="df(this)"></td><td></td></tr>`).join("");
+ return `<div class="p"><h2>Conferência de estoque</h2><div class="bar"><label>Garagem<select onchange="cg=this.value;render()">${opts(G(),0,cg)}</select></label></div><p class="hint">Digite a quantidade contada. Peças em branco não são alteradas. Ao aplicar, as diferenças viram ajustes no histórico.</p><div class="w"><table><thead><tr><th>Código</th><th>Peça</th><th>Sistema</th><th>Contado</th><th>Diferença</th></tr></thead><tbody>${rows}</tbody></table></div><br><button class="b v" onclick="applyC()">Aplicar ajustes</button></div>`}
+function df(i){const d=i.value===""?"":parseInt(i.value)-bal(i.dataset.c,cg),t=i.parentNode.nextSibling;t.innerHTML=d===""?"":`<span class="${d>0?"pos":d<0?"neg":""}">${d>0?"+":""}${d}</span>`}
+function applyC(){let n=0;document.querySelectorAll(".cc").forEach(i=>{if(i.value==="")return;const d=parseInt(i.value)-bal(i.dataset.c,cg);if(d){log("conf",i.dataset.c,cg,d,"Conferência: contado "+i.value);n++}});save();msg(n?`${n} ajuste(s) aplicado(s).`:"Nenhuma divergência.");render()}
+/* TRANSFERÊNCIA */
+function vTr(){const g=G();return `<div class="p"><h2>Transferir peças para outra garagem</h2><div class="f"><label>Origem<select id="to" onchange="hintT()">${opts(g)}</select></label><label>Destino<select id="td">${opts(g,0,g[1])}</select></label><label>Código da peça<input id="tc" list="pl" oninput="hintT()" autocomplete="off"></label><label>Quantidade<input id="tq" type="number" min="1"></label><label>Observação<input id="tn"></label></div><p class="hint" id="th"></p><button class="b v" onclick="addT()">Transferir</button></div>${dl()}`}
+function hintT(){const c=$("tc").value.trim(),p=D.parts[c];$("th").textContent=p?`${p.d} — saldo em ${$("to").value}: ${bal(c,$("to").value)}`:""}
+function addT(){const c=$("tc").value.trim(),o=$("to").value,d=$("td").value,q=parseInt($("tq").value),n=$("tn").value;
+ if(!D.parts[c])return msg("Peça não cadastrada.",1);if(o===d)return msg("Origem e destino iguais.",1);if(!(q>0))return msg("Informe a quantidade.",1);if(q>bal(c,o))return msg(`Saldo insuficiente em ${o} (${bal(c,o)}).`,1);
+ log("transf",c,o,-q,"→ "+d+(n?" · "+n:""));log("transf",c,d,q,"← "+o+(n?" · "+n:""));save();msg("Transferência registrada.");render()}
+/* HISTÓRICO */
+function vHist(){const rv=new Set(D.log.filter(m=>m.r).map(m=>m.r));
+ const r=D.log.filter(m=>(!hk||m.k===hk)&&(!hg||m.g===hg)&&(!hq||(m.c+" "+m.n+" "+(D.parts[m.c]||{d:""}).d).toLowerCase().includes(hq.toLowerCase()))).reverse().slice(0,300);
+ return `<div class="p"><h2>Histórico de movimentações</h2><div class="bar"><label>Tipo<select onchange="hk=this.value;render()"><option value="">Todos</option>${Object.keys(KN).map(k=>`<option value="${k}" ${hk===k?"selected":""}>${KN[k]}</option>`).join("")}</select></label><label>Garagem<select onchange="hg=this.value;render()">${opts(G(),1,hg)}</select></label><label>Buscar<input value="${esc(hq)}" onchange="hq=this.value;render()" placeholder="peça, OS, técnico…"></label></div><div class="w"><table><thead><tr><th>Data</th><th>Tipo</th><th>Garagem</th><th>Peça</th><th>Qtd</th><th>Detalhe</th><th>Usuário</th><th></th></tr></thead><tbody>${r.map(m=>`<tr><td>${fd(m.t)}</td><td>${KN[m.k]}</td><td>${esc(m.g)}</td><td>${esc(m.c)}</td><td class="${m.q>0?"pos":"neg"}">${m.q>0?"+":""}${m.q}</td><td>${esc(m.n)}</td><td>${esc(m.u||"")}</td><td>${m.k==="estorno"||rv.has(m.i)?"":`<button class="b s" title="Estornar" onclick="est('${m.i}')">↩</button>`}</td></tr>`).join("")||'<tr><td colspan=8>Sem movimentações.</td></tr>'}</tbody></table></div></div>`}
+function est(i){const m=D.log.find(x=>x.i===i);if(!m||!confirm(`Estornar ${m.q>0?"+":""}${m.q} de ${m.c} em ${m.g}?`))return;log("estorno",m.c,m.g,-m.q,"Estorno de "+KN[m.k]+" de "+fd(m.t),m.i);save();render()}
+/* PEÇAS */
+function vPec(){return `<div class="p"><h2>Cadastro de peças</h2><div class="bar"><label>Buscar<input value="${esc(pq)}" oninput="pq=this.value;$('pb').innerHTML=rowsP()"></label></div><p class="hint">Edite descrição e mínimo direto na tabela. Peças novas entram pela aba Entrada.</p><div class="w"><table><thead><tr><th>Código</th><th>Descrição</th><th>Mínimo</th></tr></thead><tbody id="pb">${rowsP()}</tbody></table></div></div>`}
+function rowsP(){const q=pq.toLowerCase();return Object.keys(D.parts).sort().filter(c=>(c+" "+D.parts[c].d).toLowerCase().includes(q)).map(c=>`<tr><td><b>${esc(c)}</b></td><td><input value="${esc(D.parts[c].d)}" style="min-width:280px" onchange="ep('${c}','d',this.value)"></td><td><input type="number" min="0" style="width:80px" value="${D.parts[c].m}" onchange="ep('${c}','m',parseInt(this.value)||0)"></td></tr>`).join("")}
+function ep(c,f,v){D.parts[c][f]=v;D.parts[c].t=Date.now();save()}
+/* AJUSTES */
+function vAj(){return `<div class="p"><h2>Sincronização com o GitHub</h2><p class="hint">Use um token com permissão de Contents (leitura e escrita) só no repositório de dados privado. Fica salvo apenas neste aparelho.</p><div class="f"><label>Seu nome (aparece nas movimentações)<input id="au" value="${esc(cfg.u||"")}"></label><label>Repositório de dados (usuario/repositorio)<input id="ar" value="${esc(cfg.repo||"")}"></label><label>Arquivo<input id="ap" value="${esc(cfg.path||"estoque.json")}"></label><label>Token do GitHub<input id="at" type="password" value="${esc(cfg.tk||"")}"></label></div><button class="b" onclick="saveCfg()">Salvar e sincronizar</button></div>
+<div class="p"><h2>Garagens</h2><div class="bar"><label>Nova garagem<input id="ag"></label><button class="b" style="flex:0 0 auto" onclick="addG()">Adicionar</button></div><p class="hint">Atuais: ${G().map(esc).join(", ")}</p></div>
+<div class="p"><h2>Importar saldo da planilha</h2><p class="hint">Copie as colunas da planilha e cole abaixo: código ⇥ quantidade (ou código ⇥ descrição ⇥ quantidade). Cada linha vira uma entrada de saldo inicial.</p><div class="bar"><label>Garagem<select id="ig">${opts(G())}</select></label></div><textarea id="it" rows="6"></textarea><br><br><button class="b v" onclick="impS()">Importar saldo</button></div>`}
+function saveCfg(){cfg={u:$("au").value.trim(),repo:$("ar").value.trim(),path:$("ap").value.trim()||"estoque.json",tk:$("at").value.trim()};try{localStorage.setItem("est_cfg",JSON.stringify(cfg))}catch(e){}msg("Salvo.");sync()}
+function addG(){const g=$("ag").value.trim();if(!g||G().includes(g))return msg("Nome vazio ou já existe.",1);D.g.push(g);save();render()}
+function impS(){let n=0;const g=$("ig").value;$("it").value.split("\n").forEach(l=>{const p=l.split(/\t|;/).map(x=>x.trim());if(p.length<2)return;const c=p[0],q=parseInt(p[p.length-1]);if(!c||!(q>0))return;
+ if(!D.parts[c]){D.parts[c]={d:p.length>2?p[1]:"",m:0,t:Date.now()}}log("entrada",c,g,q,"Saldo inicial (planilha)");n++});save();msg(n+" linha(s) importada(s).");render()}
+calc();render();if(cfg.tk)sync();else setSt("");
+</script></body></html>
