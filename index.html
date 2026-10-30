@@ -131,6 +131,7 @@ const CAT=`10151834-00|Pinça de freio esquerda
 let D={g:["AutoBless","Pêssego","NorteBuss G1","NorteBuss G2","CampoBelo"],parts:{},log:[]};
 CAT.forEach(([c,d])=>D.parts[c]={d,m:0,t:0});
 let cfg={};try{cfg=JSON.parse(localStorage.getItem("est_cfg"))||{}}catch(e){}
+cfg.repo=cfg.repo||"VictorTVR/estoque-dados";cfg.path=cfg.path||"estoque.json";
 try{const x=JSON.parse(localStorage.getItem("estoque_v2"));if(x&&x.parts&&x.log)D=merge(D,x)}catch(e){}
 let S={},tab="saldo",sg="",sq="",sf="",cg="",hk="",hg="",hq="",pq="",ok=0;
 const $=i=>document.getElementById(i),G=()=>D.g;
