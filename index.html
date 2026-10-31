@@ -130,10 +130,10 @@ const CAT=`10151834-00|Pinça de freio esquerda
 20254378-00|BOLSÃO AR FIRESTONE DIANT D9`.trim().split("\n").map(l=>l.split("|"));
 const GAR=["AutoBless","AlfaRodobus","MobiBrasil","MoveBuss","CampoBelo","TransWolf","Pêssego","Express","TransPass","GatoPreto","SantaBrigda","SusanTour","KBPX","NorteBuss G1","NorteBuss G2"];
 const TB=["saldo","ent","sai","conf","tr","dir","hist","pec"];
-const mkR=(t,o)=>{const r={h:"own",todas:0,est:0,edp:0,addp:0,aprov:1,t:0};TB.forEach(k=>r["t_"+k]=t.includes(k)?1:0);return{...r,...o}};
-const PL={t_saldo:"Aba Saldo",t_ent:"Aba Entrada",t_sai:"Aba Saída",t_conf:"Aba Conferência",t_tr:"Aba Solicitação de transferência",t_dir:"Aba Transferência direta (de qualquer garagem para qualquer garagem)",t_hist:"Aba Histórico",t_pec:"Aba Peças",todas:"Ver e operar todas as garagens (senão, só as dele)",est:"Estornar movimentações",edp:"Editar descrição das peças",addp:"Cadastrar peças novas",aprov:"Aprovar ou recusar solicitações de transferência"};
+const mkR=(t,o)=>{const r={h:"own",todas:0,est:0,edp:0,addp:0,resp:0,cons:0,tr_any:0,t:0};TB.forEach(k=>r["t_"+k]=t.includes(k)?1:0);return{...r,...o}};
+const PL={t_ent:"Aba Entrada",t_sai:"Aba Saída",t_conf:"Aba Conferência",t_tr:"Aba Solicitação de transferência",t_dir:"Aba Transferência direta (de qualquer garagem para qualquer garagem)",t_hist:"Aba Histórico",t_pec:"Aba Peças",todas:"Ver e operar todas as garagens (senão, só as dele)",est:"Estornar movimentações",edp:"Editar descrição das peças",addp:"Cadastrar peças novas",resp:"Residente: responsável pela garagem, recebe as solicitações de peças da sua garagem",cons:"Consultor: recebe as solicitações das garagens que não têm residente",tr_any:"Solicitar transferência de qualquer garagem para qualquer garagem (senão, só para a própria)"};
 const US=[["Alex","Pêssego"],["Alexon"],["Akunna"],["Luiz Amutti"],["João Abreu"],["Victor Tavares"],["Mario Almeida"],["Jose Carlos"],["Alessandro"],["Ricardo"],["Roberto","CampoBelo"],["Yeferson"],["Carlos Sedeño"],["Fell","KBPX"],["Angel"],["Danilo"],["Yan Carlos","AutoBless"]];
-let D={g:[...GAR],parts:{},users:{},roles:{"Gestor":mkR(TB.filter(x=>x!=="dir"),{h:"all",todas:1,est:1,edp:1,addp:1}),"Líder":mkR(TB.filter(x=>x!=="dir"),{h:"gar",est:1,edp:1,addp:1}),"Consultor Técnico":mkR(TB,{h:"all",todas:1,est:1,edp:1,addp:1}),"Técnico":mkR(["saldo","ent","sai","conf","tr","hist"])},req:{},log:[]};
+let D={g:[...GAR],parts:{},users:{},roles:{"Gestor":mkR(TB.filter(x=>x!=="dir"),{h:"all",todas:1,est:1,edp:1,addp:1}),"Líder":mkR(TB,{h:"gar",est:1,edp:1,addp:1}),"Consultor Técnico":mkR(TB,{h:"all",todas:1,est:1,edp:1,addp:1,cons:1,tr_any:1}),"Técnico Residente":mkR(["saldo","ent","sai","conf","tr","hist"],{h:"gar",resp:1}),"Técnico de Campo":mkR(["saldo","tr","hist"],{todas:1,tr_any:1}),"Técnico":mkR(["saldo"])},req:{},log:[]};
 CAT.forEach(([c,d])=>D.parts[c]={d,t:0});US.forEach(([n,g])=>D.users[n]={r:"Técnico",g:g?[g]:[],t:0});
 let cfg={};try{cfg=JSON.parse(localStorage.getItem("est_cfg"))||{}}catch(e){}
 cfg.repo=cfg.repo||"VictorTVR/estoque-dados";cfg.path=cfg.path||"estoque.json";
@@ -192,7 +192,7 @@ setInterval(()=>sync(),30000);document.addEventListener("visibilitychange",()=>{
 /* NAVEGAÇÃO */
 const KN={entrada:"Entrada",saida:"Saída",conf:"Conferência",transf:"Transferência",estorno:"Estorno",reserva:"Solicitação enviada (reserva)",recusa:"Solicitação recusada",cancel:"Solicitação cancelada"};
 const T={saldo:["📦 Saldo",vSaldo],ent:["⬇ Entrada",vEnt],sai:["⬆ Saída",vSai],conf:["✔ Conferência",vConf],tr:["📨 Solicitação de transferência",vTr],dir:["🔀 Transferência direta",vDir],hist:["🕘 Histórico",vHist],pec:["🔩 Peças",vPec],aj:["⚙ Ajustes",vAj],cx:["🔑 Conexão",vCx]};
-const tv=k=>k==="aj"?isM():can("t_"+k);
+const tv=k=>k==="aj"?isM():k==="saldo"||can("t_"+k);
 function go(t){tab=t;render()}
 function render(){
  $("who").innerHTML=me&&(isM()||U())?`<b>${esc(me)}</b>${isM()?"":" · "+esc(U().r)} <button class="t" onclick="go('cx')">🔑</button>${isM()?"":'<button class="t" onclick="chPw()">Senha</button>'}<button class="t" onclick="logout()">Sair</button>`:"";
@@ -232,8 +232,8 @@ function pkS(id,w){const I=$(id+w),O=$(id+(w==="c"?"d":"c")),v=I.value.trim(),P=
  $(id+"r").innerHTML=srch(v,8).map(c=>`<div class="ri" data-c="${esc(c)}" onclick="pkP('${id}','${esc(c)}')"><b>${esc(P[c].d||c)}</b><small>Código: ${esc(c)}${g?" · Saldo em "+esc(g)+": "+bal(c,g):""}</small></div>`).join("")||(v?'<div class="ri"><small>Nenhuma peça encontrada</small></div>':"");pkH(id)}
 function pkP(id,c){const a=$(id+"c"),b=$(id+"d");a.value=c;b.value=D.parts[c].d;a.dataset.ok=b.dataset.ok="1";$(id+"r").innerHTML="";pkH(id)}
 /* SALDO */
-function visG(){return myG().filter(g=>gsel[g]!==false&&(sz||Object.keys(D.parts).some(c=>bal(c,g)>0)))}
-function vSaldo(){const mg=myG().filter(g=>sz||Object.keys(D.parts).some(c=>bal(c,g)>0)),vg=visG(),so=(v,l)=>`<option value="${v}" ${sf===v?"selected":""}>${l}</option>`;
+function visG(){return G().filter(g=>gsel[g]!==false&&(sz||Object.keys(D.parts).some(c=>bal(c,g)>0)))}
+function vSaldo(){const mg=G().filter(g=>sz||Object.keys(D.parts).some(c=>bal(c,g)>0)),vg=visG(),so=(v,l)=>`<option value="${v}" ${sf===v?"selected":""}>${l}</option>`;
  const cards=vg.map(g=>{let t=0,n=0;for(const c in D.parts){const x=bal(c,g);t+=x;if(x>0)n++}return `<div class="k"><b>${esc(g)}</b><span>${t} un.</span><small>${n} peça(s) com saldo</small></div>`}).join("");
  return `<div class="p"><h2>Garagens exibidas (só as com saldo)</h2><div>${mg.map(g=>`<label class="ch"><input type="checkbox" ${gsel[g]!==false?"checked":""} onchange="gsel['${g}']=this.checked;render()">${esc(g)}</label>`).join("")}<label class="ch"><input type="checkbox" ${sz?"checked":""} onchange="sz=this.checked;render()">Mostrar também sem saldo</label></div></div><div class="ks">${cards}</div><div class="p"><div class="bar">${fbox("fsq","Buscar por nome ou código",sq,v=>{sq=v;$("sb").innerHTML=rowsS()})}<label>Mostrar<select onchange="sf=this.value;render()">${so("","Todas as peças")}${so("pos","Só com saldo")}${so("zero","Zeradas")}${so("lt","Abaixo de N unidades")}</select></label>${sf==="lt"?`<label>Menos de (unidades)<input type="number" min="1" value="${sn}" oninput="sn=+this.value||0;$('sb').innerHTML=rowsS()"></label>`:""}</div><div class="w"><table><thead><tr><th>Código</th><th>Peça</th>${vg.map(g=>`<th>${esc(g)}</th>`).join("")}<th>Total</th></tr></thead><tbody id="sb">${rowsS()}</tbody></table></div><p class="hint">Peças reservadas em solicitações de transferência pendentes já saem do saldo da garagem que as fornece.</p></div>`}
 function rowsS(){const gs=visG(),q=sq.toLowerCase();
@@ -262,21 +262,23 @@ async function applyC(){const L=[];document.querySelectorAll(".cc").forEach(i=>{
  L.forEach(([c,d,v])=>log("conf",c,cg,d,"Conferência: contado "+v));save();msg(`${L.length} ajuste(s) aplicado(s).`);render()}
 /* SOLICITAÇÃO DE TRANSFERÊNCIA: reserva no estoque de quem fornece até o responsável confirmar */
 let ln=-1;
-const canAp=r=>isM()||(can("aprov")&&((U()||{}).g||[]).includes(r.para));
-const apv=g=>Object.keys(D.users).filter(n=>{const u=D.users[n];return!u.off&&u.g.includes(g)&&(D.roles[u.r]||{}).aprov});
+const canAp=r=>isM()||(!!U()&&!U().off&&((can("resp")&&U().g.includes(r.para))||(can("cons")&&!res(r.para).length)));
+const act=f=>Object.keys(D.users).filter(n=>{const u=D.users[n];return!u.off&&f(u,D.roles[u.r]||{})});
+const res=g=>act((u,r)=>r.resp&&u.g.includes(g));
+const apv=g=>res(g).length?res(g):act((u,r)=>r.cons);
 const pendMine=()=>(me&&(isM()||U()))?Object.values(D.req).filter(r=>r.st==="pend"&&canAp(r)):[];
-function vTr(){const o=isM()?G():(U().g||[]),g=G(),A=Object.values(D.req),R=A.filter(r=>isM()||can("todas")||r.by===me||canAp(r)).sort((a,b)=>b.t-a.t),P=R.filter(r=>r.st==="pend"&&canAp(r));
+function vTr(){const any=isM()||can("tr_any"),o=any?G():(U().g||[]),g=G(),A=Object.values(D.req),R=A.filter(r=>isM()||can("t_dir")||r.by===me||canAp(r)).sort((a,b)=>b.t-a.t),P=R.filter(r=>r.st==="pend"&&canAp(r));
  const stk=r=>bal(r.c,r.para)+A.filter(x=>x.st==="pend"&&x.c===r.c&&x.para===r.para).reduce((s,x)=>s+x.q,0);
  const nm=r=>`<b>${esc(r.c)}</b> ${esc((D.parts[r.c]||{d:""}).d)}`,stl={pend:"⏳ Aguardando",ok:"✅ Aprovada",neg:"❌ Recusada",canc:"🚫 Cancelada"};
  return `${P.length?`<div class="p"><h2>📨 Solicitações para você confirmar</h2>${P.map(r=>`<div class="k" style="cursor:default;margin-top:8px;border-left-color:var(--wa)"><div><b>${esc(r.de)}</b> (${esc(r.by)}) está pedindo: ${nm(r)}</div><div>Quantidade solicitada: <b>${r.q}</b> · Em estoque na ${esc(r.para)}: <b>${stk(r)}</b> un.</div><div>Motivo: ${esc(r.mo)}</div><div class="bar" style="margin:8px 0 0"><button class="b" onclick="apr('${r.id}')">Confirmar</button><button class="b r" onclick="rej('${r.id}')">Recusar</button></div><small>Ao confirmar, a peça sai da reserva e entra no estoque de ${esc(r.de)}.</small></div>`).join("")}</div>`:""}
-<div class="p"><h2>Nova solicitação de transferência</h2><div class="f"><label>Minha garagem (quem recebe)<select id="to" ${!isM()&&o.length===1?"disabled":""}>${opts(o)}</select></label><label>Pedir à garagem<select id="td" onchange="hintT()">${opts(g)}</select></label>${pk("pt")}<label>Quantidade<input id="tq" type="number" min="1" inputmode="numeric"></label><label>Motivo / observação<input id="tn"></label></div><p class="hint" id="th"></p><button class="b v" onclick="addT()">Enviar solicitação</button><p class="hint" style="margin-top:8px">Todos os campos são obrigatórios. A peça fica reservada na garagem pedida até o responsável confirmar. Você só pode pedir peças para a sua própria garagem; outras operações devem ser pedidas ao consultor técnico.</p></div>
+<div class="p"><h2>Nova solicitação de transferência</h2><div class="f"><label>Minha garagem (quem recebe)<select id="to" ${!any&&o.length===1?"disabled":""}>${opts(o)}</select></label><label>Pedir à garagem<select id="td" onchange="hintT()">${opts(g)}</select></label>${pk("pt")}<label>Quantidade<input id="tq" type="number" min="1" inputmode="numeric"></label><label>Motivo / observação<input id="tn"></label></div><p class="hint" id="th"></p><button class="b v" onclick="addT()">Enviar solicitação</button><p class="hint" style="margin-top:8px">Todos os campos são obrigatórios. A peça fica reservada na garagem pedida até o responsável confirmar. ${any?"Você pode pedir de qualquer garagem para qualquer garagem.":"Você só pode pedir peças para a sua própria garagem; outras operações devem ser pedidas ao consultor técnico."} A solicitação vai para o residente da garagem pedida ou, se ela não tiver residente, para o consultor técnico.</p></div>
 <div class="p"><h2>Solicitações</h2><div class="w"><table><thead><tr><th>Data</th><th>Garagens</th><th>Peça</th><th>Qtd</th><th>Motivo</th><th>Status</th><th></th></tr></thead><tbody>${R.map(r=>`<tr><td>${fd(r.at)}</td><td>${esc(r.para)} → ${esc(r.de)}<br><small>${esc(r.by)}</small></td><td>${nm(r)}</td><td>${r.q}</td><td>${esc(r.mo)}</td><td>${stl[r.st]}${r.dec?`<br><small>${esc(r.dec)}${r.nota?": "+esc(r.nota):""}</small>`:""}</td><td>${r.st==="pend"&&(r.by===me||isM())?`<button class="b s" onclick="rej('${r.id}',1)">Cancelar</button>`:""}</td></tr>`).join("")||'<tr><td colspan=7>Nenhuma solicitação.</td></tr>'}</tbody></table></div></div>`}
-function hintT(){const c=$("ptc").value.trim(),g=$("td").value;$("th").textContent=D.parts[c]?`Disponível em ${g}: ${bal(c,g)} un.`:""}
+function hintT(){const c=$("ptc").value.trim(),g=$("td").value,a=apv(g);$("th").textContent=(D.parts[c]?`Disponível em ${g}: ${bal(c,g)} un. · `:"")+(a.length?`Será enviada para: ${a.join(", ")}${res(g).length?"":" (consultor técnico, pois "+g+" não tem residente)"}`:`⚠ ${g} ainda não tem residente nem consultor definido`)}
 function addT(){const c=$("ptc").value.trim(),d=$("ptd").value.trim(),de=$("to").value,pa=$("td").value,q=parseInt($("tq").value),mo=$("tn").value.trim();
  if(!D.parts[c]||!d||!(q>0)||!mo||!de||!pa)return msg("Preencha tudo: código, descrição, quantidade e motivo.",1);
- if(!isM()&&!(U().g||[]).includes(de))return msg("Você só pode solicitar peças para a sua própria garagem. Outras operações devem ser pedidas ao consultor técnico.",1);
+ if(!isM()&&!can("tr_any")&&!(U().g||[]).includes(de))return msg("Você só pode solicitar peças para a sua própria garagem. Outras operações devem ser pedidas ao consultor técnico.",1);
  if(de===pa)return msg("A garagem que recebe e a que fornece não podem ser a mesma.",1);
- if(!apv(pa).length)return msg(`A garagem ${pa} ainda não tem responsável definido, então a solicitação ainda não é válida.`,1);
+ if(!apv(pa).length)return msg(`A garagem ${pa} não tem residente nem consultor técnico definido, então a solicitação ainda não é válida.`,1);
  if(q>bal(c,pa))return msg(`${pa} só tem ${bal(c,pa)} un. disponível.`,1);
  const id=uid();D.req[id]={id,t:Date.now(),at:now(),c,q,de,para:pa,by:me,mo,st:"pend"};
  log("reserva",c,pa,-q,`Reservado para ${de} (pedido de ${me}): ${mo}`,id,"rq-"+id+"-res");save();msg("Solicitação enviada. A peça ficou reservada.");render()}
@@ -296,7 +298,7 @@ function addD(){if(!can("t_dir"))return;const c=$("pdc").value.trim(),d=$("pdd")
  if(!confirm(`Tem certeza que deseja confirmar essa transferência de peça?\n\n${q} un. de ${c} — ${d}\nDe: ${o}\nPara: ${p}\nMotivo: ${n}`))return;
  log("transf",c,o,-q,`→ ${p} · Transferência direta: ${n}`);log("transf",c,p,q,`← ${o} · Transferência direta: ${n}`);save();msg("Transferência direta realizada.");render()}
 /* HISTÓRICO */
-function hv(m){const s=isM()?"all":(D.roles[U().r]||{}).h||"own";return s==="all"||(s==="gar"?myG().includes(m.g):m.u===me||(m.r&&D.req[m.r]&&D.req[m.r].by===me))}
+function hv(m){const s=isM()?"all":(D.roles[U().r]||{}).h||"own";return s==="all"||!!(m.r&&D.req[m.r]&&D.req[m.r].by===me)||(s==="gar"?myG().includes(m.g):m.u===me)}
 function rowsH(){const rv=new Set(D.log.filter(m=>m.r).map(m=>m.r));
  return D.log.filter(hv).filter(m=>(!hk||m.k===hk)&&(!hg||m.g===hg)&&(!hq||tk(hq,m.c+" "+m.n+" "+m.u+" "+(D.parts[m.c]||{d:""}).d))).reverse().slice(0,300).map(m=>`<tr><td>${fd(m.t)}</td><td>${KN[m.k]}</td><td>${esc(m.g)}</td><td>${esc(m.c)}<br><small>${esc((D.parts[m.c]||{d:""}).d)}</small></td><td class="${m.q>0?"pos":"neg"}">${m.q>0?"+":""}${m.q}</td><td>${esc(m.n)}</td><td>${esc(m.u||"")}</td><td>${m.k==="estorno"||rv.has(m.i)||!can("est")||["reserva","recusa","cancel"].includes(m.k)?"":`<button class="b s" title="Estornar" onclick="est('${m.i}')">↩</button>`}</td></tr>`).join("")||'<tr><td colspan=8>Sem movimentações.</td></tr>'}
 function vHist(){const L=D.log.filter(hv);
