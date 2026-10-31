@@ -28,11 +28,11 @@ td.ok{color:var(--ok);font-weight:700}td.wa{background:color-mix(in srgb,var(--w
 .bar{display:flex;flex-wrap:wrap;gap:10px;margin-bottom:12px;align-items:end}.bar>*{flex:1 1 160px}
 .hint{color:var(--mu);font-size:13px;margin:-4px 0 12px}.cc{width:90px}td input{padding:4px 6px}
 #toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--ok);color:#fff;padding:10px 18px;border-radius:8px;display:none;z-index:9}#toast.e{background:var(--er)}
-</style><script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script></head><body>
-<header><h1>📦 Controle de Estoque de Peças</h1><span id="st"></span></header>
+.pk{display:contents}.pr:empty{display:none}.pr{grid-column:1/-1;margin-top:-6px}.ri{padding:9px 10px;border:1px solid var(--bd);border-radius:8px;margin-top:4px;background:var(--bg);cursor:pointer}.ch{display:inline-flex;flex-direction:row;align-items:center;gap:6px;color:var(--tx);font-size:14px;border:1px solid var(--bd);border-radius:8px;padding:6px 10px;margin:3px 4px 3px 0;background:var(--cd)}.ch input{width:auto}#who{display:flex;gap:6px;align-items:center;flex-wrap:wrap}#who .t{padding:6px 10px}details summary{cursor:pointer}.sb{position:relative}.dd{position:absolute;left:0;right:0;top:100%;z-index:6;background:var(--cd);border:1px solid var(--bd);border-radius:10px;box-shadow:0 8px 20px #0004;max-height:55vh;overflow:auto}.dd:empty{display:none}.ri small{display:block;color:var(--mu);margin-top:2px}.ri{min-height:44px;padding:11px 12px}input,select,textarea{font-size:16px}.bdg{background:var(--er);color:#fff;border-radius:10px;padding:0 7px;margin-left:6px;font-size:12px}</style><script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script></head><body>
+<header><h1>📦 Controle de Estoque de Peças</h1><span id="st"></span><span id="who"></span></header>
 <nav id="nav"></nav><main id="main"></main><div id="toast"></div>
 <script>
-const SENHA="1234"; // senha provisória dos Ajustes (troque aqui)
+const MH="3ad2062b1ac82640212e53697f742e253f032c09b9bcb16b1f2450ef1fc2d0fd"; // hash da senha mestra
 const CAT=`10151834-00|Pinça de freio esquerda
 10151837-00|CONJUNTO DE MONTAGEM FREIO TRA
 10151849-00|K9W DISCO DE FREIO DIANTEIRO
@@ -128,28 +128,49 @@ const CAT=`10151834-00|Pinça de freio esquerda
 20175967-00|ROLAMENTO 6213 NSK
 20254377-00|BOLSÃO AR FIRESTONE TRAS D9
 20254378-00|BOLSÃO AR FIRESTONE DIANT D9`.trim().split("\n").map(l=>l.split("|"));
-let D={g:["AutoBless","Pêssego","NorteBuss G1","NorteBuss G2","CampoBelo"],parts:{},log:[]};
-CAT.forEach(([c,d])=>D.parts[c]={d,m:0,t:0});
+const GAR=["AutoBless","AlfaRodobus","MobiBrasil","MoveBuss","CampoBelo","TransWolf","Pêssego","Express","TransPass","GatoPreto","SantaBrigda","SusanTour","KBPX","NorteBuss G1","NorteBuss G2"];
+const TB=["saldo","ent","sai","conf","tr","dir","hist","pec"];
+const mkR=(t,o)=>{const r={h:"own",todas:0,est:0,edp:0,addp:0,aprov:1,t:0};TB.forEach(k=>r["t_"+k]=t.includes(k)?1:0);return{...r,...o}};
+const PL={t_saldo:"Aba Saldo",t_ent:"Aba Entrada",t_sai:"Aba Saída",t_conf:"Aba Conferência",t_tr:"Aba Solicitação de transferência",t_dir:"Aba Transferência direta (de qualquer garagem para qualquer garagem)",t_hist:"Aba Histórico",t_pec:"Aba Peças",todas:"Ver e operar todas as garagens (senão, só as dele)",est:"Estornar movimentações",edp:"Editar descrição das peças",addp:"Cadastrar peças novas",aprov:"Aprovar ou recusar solicitações de transferência"};
+const US=[["Alex","Pêssego"],["Alexon"],["Akunna"],["Luiz Amutti"],["João Abreu"],["Victor Tavares"],["Mario Almeida"],["Jose Carlos"],["Alessandro"],["Ricardo"],["Roberto","CampoBelo"],["Yeferson"],["Carlos Sedeño"],["Fell","KBPX"],["Angel"],["Danilo"],["Yan Carlos","AutoBless"]];
+let D={g:[...GAR],parts:{},users:{},roles:{"Gestor":mkR(TB.filter(x=>x!=="dir"),{h:"all",todas:1,est:1,edp:1,addp:1}),"Líder":mkR(TB.filter(x=>x!=="dir"),{h:"gar",est:1,edp:1,addp:1}),"Consultor Técnico":mkR(TB,{h:"all",todas:1,est:1,edp:1,addp:1}),"Técnico":mkR(["saldo","ent","sai","conf","tr","hist"])},req:{},log:[]};
+CAT.forEach(([c,d])=>D.parts[c]={d,t:0});US.forEach(([n,g])=>D.users[n]={r:"Técnico",g:g?[g]:[],t:0});
 let cfg={};try{cfg=JSON.parse(localStorage.getItem("est_cfg"))||{}}catch(e){}
 cfg.repo=cfg.repo||"VictorTVR/estoque-dados";cfg.path=cfg.path||"estoque.json";
+const MK=["parts","users","roles","req"];
+function norm(o){o.g=o.g.map(x=>x==="Pessêgo"?"Pêssego":x).filter((x,i,a)=>a.indexOf(x)===i);o.log.forEach(m=>{if(m.g==="Pessêgo")m.g="Pêssego"});return o}
+function merge(a,b){const o={g:[...a.g],log:[...a.log]};
+ MK.forEach(k=>{o[k]={...a[k]};const B=b[k]||{};for(const c in B)if(!o[k][c]||(B[c].t||0)>(o[k][c].t||0))o[k][c]=B[c]});
+ (b.g||[]).forEach(x=>{if(!o.g.includes(x))o.g.push(x)});
+ const ids=new Set(o.log.map(m=>m.i));(b.log||[]).forEach(m=>{if(!ids.has(m.i))o.log.push(m)});
+ o.log.sort((x,y)=>x.t<y.t?-1:1);return norm(o)}
+function ahead(a,b){const ids=new Set((b.log||[]).map(m=>m.i));return a.log.some(m=>!ids.has(m.i))||a.g.some(x=>!(b.g||[]).includes(x))||MK.some(k=>Object.keys(a[k]).some(c=>!(b[k]||{})[c]||(a[k][c].t||0)>(b[k][c].t||0)))}
 try{const x=JSON.parse(localStorage.getItem("estoque_v2"));if(x&&x.parts&&x.log)D=merge(D,x)}catch(e){}
-let S={},tab="saldo",sg="",sq="",sf="",cg="",hk="",hg="",hq="",pq="",ok=0;
+let S={},tab="saldo",sq="",sf="",sn=5,sz=0,gsel={},cg="",hk="",hg="",hq="",pq="",er="",me=localStorage.getItem("est_me")||"";
 const $=i=>document.getElementById(i),G=()=>D.g;
 const esc=s=>String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 const opts=(a,all,sel)=>(all?'<option value="">Todas</option>':'')+a.map(x=>`<option ${x===sel?"selected":""}>${esc(x)}</option>`).join("");
 const bal=(c,g)=>S[c+"|"+g]||0,now=()=>new Date().toISOString(),uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,7);
 const fd=s=>new Date(s).toLocaleString("pt-BR",{dateStyle:"short",timeStyle:"short"});
 function calc(){S={};D.log.forEach(m=>{const k=m.c+"|"+m.g;S[k]=(S[k]||0)+m.q})}
-function merge(a,b){const o={g:[...a.g],parts:{...a.parts},log:[...a.log]};
- (b.g||[]).forEach(x=>{if(!o.g.includes(x))o.g.push(x)});
- for(const c in b.parts){const p=b.parts[c];if(!o.parts[c]||(p.t||0)>(o.parts[c].t||0))o.parts[c]=p}
- const ids=new Set(o.log.map(m=>m.i));(b.log||[]).forEach(m=>{if(!ids.has(m.i))o.log.push(m)});
- o.log.sort((x,y)=>x.t<y.t?-1:1);return o}
-function ahead(a,b){const ids=new Set((b.log||[]).map(m=>m.i));return a.log.some(m=>!ids.has(m.i))||a.g.some(x=>!(b.g||[]).includes(x))||Object.keys(a.parts).some(c=>!b.parts[c]||(a.parts[c].t||0)>(b.parts[c].t||0))}
 function persist(){try{localStorage.setItem("estoque_v2",JSON.stringify(D))}catch(e){}}
 let tm;function save(){calc();persist();clearTimeout(tm);tm=setTimeout(()=>sync(),1200)}
-function msg(t,e){const o=$("toast");o.textContent=t;o.className=e?"e":"";o.style.display="block";clearTimeout(o._t);o._t=setTimeout(()=>o.style.display="none",3000)}
-function log(k,c,g,q,n,r){D.log.push({i:uid(),t:now(),k,c,g,q,n:n||"",u:cfg.u||"",r})}
+function msg(t,e){const o=$("toast");o.textContent=t;o.className=e?"e":"";o.style.display="block";clearTimeout(o._t);o._t=setTimeout(()=>o.style.display="none",3500)}
+function log(k,c,g,q,n,r,i){D.log.push({i:i||uid(),t:now(),k,c,g,q,n:n||"",u:me,r})}
+/* ACESSO */
+const isM=()=>me==="Mestre",U=()=>D.users[me],defPw=n=>n[0].toUpperCase()+"BYD2026";
+const can=k=>isM()||!!(U()&&!U().off&&(D.roles[U().r]||{})[k]);
+const myG=()=>can("todas")?G():G().filter(g=>(U()?U().g:[]).includes(g));
+async function H(p){const b=await crypto.subtle.digest("SHA-256",new TextEncoder().encode("estBYD:"+p));return[...new Uint8Array(b)].map(x=>x.toString(16).padStart(2,"0")).join("")}
+async function chk(p){if(isM())return(await H(p))===MH;const u=U();return u.ph?(await H(p))===u.ph:p===defPw(me)}
+function askPw(t){return new Promise(r=>{const o=document.createElement("div");o.style="position:fixed;inset:0;background:#0008;display:flex;align-items:center;justify-content:center;z-index:20";o.innerHTML=`<div class="p" style="width:min(340px,90vw)"><h2>${t}</h2><input type="password" id="mp"><br><br><button class="b" id="mo">OK</button> <button class="b s" id="mc">Cancelar</button></div>`;document.body.appendChild(o);const f=v=>{o.remove();r(v)};$("mp").focus();$("mo").onclick=()=>f($("mp").value);$("mc").onclick=()=>f(null);$("mp").onkeydown=e=>{if(e.key==="Enter")f($("mp").value)}})}
+async function newPw(){for(;;){const a=await askPw("Defina sua nova senha (mín. 6 caracteres)");if(a===null)return false;if(a.length<6||a===defPw(me)){msg("Use 6+ caracteres e diferente da senha padrão.",1);continue}const b=await askPw("Repita a nova senha");if(b===null)return false;if(a!==b){msg("As senhas não conferem.",1);continue}U().ph=await H(a);U().t=Date.now();save();return true}}
+async function chPw(){if(isM())return msg("A senha mestra fica no código do sistema.",1);const c=await askPw("Senha atual");if(c===null)return;if(!await chk(c))return msg("Senha incorreta.",1);if(await newPw())msg("Senha alterada.")}
+async function doLogin(){const u=$("lu").value,p=$("lp").value;if(cfg.tk)await sync();me=u;
+ if(!p||!await chk(p)){me="";return msg("Usuário ou senha incorretos.",1)}
+ if(!isM()&&!U().ph&&!await newPw()){me="";return}
+ localStorage.setItem("est_me",me);tab="saldo";render();const n=pendMine().length;if(n)msg(`📨 Você tem ${n} solicitação(ões) de transferência para confirmar.`)}
+function logout(){me="";ln=-1;localStorage.removeItem("est_me");render()}
 /* SINCRONIZAÇÃO GITHUB */
 const api=()=>`https://api.github.com/repos/${cfg.repo}/contents/${cfg.path||"estoque.json"}`;
 const hd=()=>({Authorization:"Bearer "+cfg.tk,Accept:"application/vnd.github+json"});
@@ -169,56 +190,135 @@ async function sync(n=0){
  }catch(e){setSt("err",e.message)}busy=0}
 setInterval(()=>sync(),30000);document.addEventListener("visibilitychange",()=>{if(!document.hidden)sync()});
 /* NAVEGAÇÃO */
-const KN={entrada:"Entrada",saida:"Saída",conf:"Conferência",transf:"Transferência",estorno:"Estorno"};
-const T={saldo:["📦 Saldo",vSaldo],ent:["⬇ Entrada",vEnt],sai:["⬆ Saída",vSai],conf:["✔ Conferência",vConf],tr:["🔁 Transferir peças",vTr],hist:["🕘 Histórico",vHist],pec:["🔩 Peças",vPec],aj:["⚙ Ajustes",vAj]};
-function go(t){if(t==="aj"&&!ok){if(prompt("Senha dos Ajustes:")!==SENHA)return;ok=1}tab=t;render()}
+const KN={entrada:"Entrada",saida:"Saída",conf:"Conferência",transf:"Transferência",estorno:"Estorno",reserva:"Solicitação enviada (reserva)",recusa:"Solicitação recusada",cancel:"Solicitação cancelada"};
+const T={saldo:["📦 Saldo",vSaldo],ent:["⬇ Entrada",vEnt],sai:["⬆ Saída",vSai],conf:["✔ Conferência",vConf],tr:["📨 Solicitação de transferência",vTr],dir:["🔀 Transferência direta",vDir],hist:["🕘 Histórico",vHist],pec:["🔩 Peças",vPec],aj:["⚙ Ajustes",vAj],cx:["🔑 Conexão",vCx]};
+const tv=k=>k==="aj"?isM():can("t_"+k);
+function go(t){tab=t;render()}
 function render(){
- const b=(k,x)=>`<button class="t ${x||""} ${tab===k?"on":""}" onclick="go('${k}')">${T[k][0]}</button>`;
- $("nav").innerHTML=`<div class="grp"><small>ESTOQUE</small>${["saldo","ent","sai","conf"].map(k=>b(k)).join("")}</div><div class="grp"><small>ENTRE GARAGENS</small>${["tr","hist"].map(k=>b(k,"x")).join("")}</div><div class="grp"><small>CADASTRO</small>${["pec","aj"].map(k=>b(k)).join("")}</div>`;
- if(!cg)cg=G()[0];$("main").innerHTML=T[tab][1]();if(tab==="sai")hint();if(tab==="tr")hintT()}
-const dl=()=>`<datalist id="pl">${Object.keys(D.parts).sort().map(c=>`<option value="${esc(c)}">${esc(D.parts[c].d)}</option>`).join("")}</datalist>`;
+ $("who").innerHTML=me&&(isM()||U())?`<b>${esc(me)}</b>${isM()?"":" · "+esc(U().r)} <button class="t" onclick="go('cx')">🔑</button>${isM()?"":'<button class="t" onclick="chPw()">Senha</button>'}<button class="t" onclick="logout()">Sair</button>`:"";
+ if(!me||(!isM()&&(!U()||U().off))){$("nav").innerHTML="";$("main").innerHTML=vLogin();return}
+ const PN=pendMine().length;if(ln>=0&&PN>ln)msg(`📨 ${PN-ln} nova(s) solicitação(ões) para você confirmar`);ln=PN;document.title=(PN?"("+PN+") ":"")+"Estoque de Peças";
+ const vs=Object.keys(T).filter(k=>k!=="cx"&&tv(k));if(tab!=="cx"&&!vs.includes(tab))tab=vs[0]||"cx";
+ const b=(k,x)=>vs.includes(k)?`<button class="t ${x||""} ${tab===k?"on":""}" onclick="go('${k}')">${T[k][0]}${k==="tr"&&PN?`<span class="bdg">${PN}</span>`:""}</button>`:"";
+ const grp=(n,a,x)=>a.some(k=>vs.includes(k))?`<div class="grp"><small>${n}</small>${a.map(k=>b(k,x)).join("")}</div>`:"";
+ $("nav").innerHTML=grp("ESTOQUE",["saldo","ent","sai","conf"])+grp("ENTRE GARAGENS",["tr","dir","hist"],"x")+grp("CADASTRO",["pec","aj"]);
+ $("main").innerHTML=tab==="cx"?vCx():T[tab][1]();if(tab==="sai")hint();if(tab==="tr")hintT();if(tab==="dir")hintD()}
+const cxForm=()=>`<p class="hint">O token fica salvo só neste aparelho. Peça ao administrador o token de acesso.</p><div class="f"><label>Repositório de dados<input id="ar" value="${esc(cfg.repo)}"></label><label>Arquivo<input id="ap" value="${esc(cfg.path)}"></label><label>Token do GitHub<input id="at" type="password" value="${esc(cfg.tk||"")}"></label></div><button class="b" onclick="saveCfg()">Salvar e sincronizar</button>`;
+function vCx(){return `<div class="p"><h2>Conexão com o GitHub (neste aparelho)</h2>${cxForm()}</div>`}
+async function saveCfg(){cfg={repo:$("ar").value.trim(),path:$("ap").value.trim()||"estoque.json",tk:$("at").value.trim()};try{localStorage.setItem("est_cfg",JSON.stringify(cfg))}catch(e){}msg("Salvo.");await sync();render()}
+function vLogin(){return `<div class="p" style="max-width:420px;margin:30px auto"><h2>Entrar</h2><div class="f"><label>Usuário<select id="lu">${opts(["Mestre",...Object.keys(D.users).filter(n=>!D.users[n].off).sort()])}</select></label><label>Senha<input id="lp" type="password" onkeydown="if(event.key==='Enter')doLogin()"></label></div><button class="b" onclick="doLogin()">Entrar</button><p class="hint" style="margin-top:12px">Primeiro acesso: senha = primeira letra do nome + BYD2026 (você define a sua em seguida).</p><details><summary>Conexão com o GitHub deste aparelho</summary>${cxForm()}</details></div>`}
+/* BUSCA DINÂMICA: sugestões enquanto digita (sem acento, várias palavras, qualquer ordem) */
+const nz=s=>String(s).toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"");
+const tk=(q,s)=>{s=nz(s);return nz(q).split(/\s+/).filter(Boolean).every(x=>s.includes(x))};
+const mt=(c,q)=>tk(q,c+" "+D.parts[c].d);
+function srch(q,n){const w=nz(q).split(/\s+/).filter(Boolean)[0];if(!w)return[];return Object.keys(D.parts).filter(c=>mt(c,q)).sort((a,b)=>{const x=nz(D.parts[a].d).startsWith(w)||nz(a).startsWith(w)?0:1,y=nz(D.parts[b].d).startsWith(w)||nz(b).startsWith(w)?0:1;return x-y||(a<b?-1:1)}).slice(0,n)}
+const row=(c,x)=>`<div class="ri" data-c="${esc(c)}" onclick="${x}"><b>${esc(D.parts[c].d||c)}</b><small>Código: ${esc(c)}</small></div>`;
+function ent(e,s){if(e.key==="Enter"){const f=document.querySelector(s+" .ri[data-c]");if(f){e.preventDefault();f.click()}}}
+document.addEventListener("click",e=>{if(!e.target.closest(".sb,.pk"))document.querySelectorAll(".dd,.pr").forEach(d=>d.innerHTML="")});
+/* caixa de busca (filtros): lista de sugestões flutuante; ao tocar numa peça, filtra pelo código */
+const FB={};
+const fbox=(id,l,val,cb)=>{FB[id]=cb;return `<label class="sb">${l}<input id="${id}" value="${esc(val)}" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" oninput="fS('${id}')" onkeydown="ent(event,'#${id}_r')"><div class="dd" id="${id}_r"></div></label>`};
+function fS(id){const v=$(id).value.trim();FB[id]($(id).value);$(id+"_r").innerHTML=D.parts[v]?"":srch(v,8).map(c=>row(c,`fP('${id}','${esc(c)}')`)).join("")}
+function fP(id,c){$(id).value=c;$(id+"_r").innerHTML="";FB[id](c)}
+/* campos Descrição + Código que se completam um ao outro */
+const pk=id=>`<div class="pk"><label>Descrição (digite o nome da peça)<input id="${id}d" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" oninput="pkS('${id}','d')" onkeydown="ent(event,'#${id}r')" placeholder="ex.: filtro de ar"></label><div class="pr" id="${id}r"></div><label>Código<input id="${id}c" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" oninput="pkS('${id}','c')" onkeydown="ent(event,'#${id}r')" placeholder="preenche sozinho"></label></div>`;
+const PG={pe:"eg",ps:"sg2",pt:"td",pd:"do"};
+function pkH(id){if(id==="ps")hint();if(id==="pt")hintT();if(id==="pd")hintD()}
+function pkS(id,w){const I=$(id+w),O=$(id+(w==="c"?"d":"c")),v=I.value.trim(),P=D.parts;delete I.dataset.ok;
+ if(w==="c"&&P[v])return pkP(id,v);
+ if(w==="d"&&v){const c=Object.keys(P).find(c=>P[c].d.toLowerCase()===v.toLowerCase());if(c)return pkP(id,c)}
+ if(O.dataset.ok){O.value="";delete O.dataset.ok}
+ const g=PG[id]&&$(PG[id])?$(PG[id]).value:"";
+ $(id+"r").innerHTML=srch(v,8).map(c=>`<div class="ri" data-c="${esc(c)}" onclick="pkP('${id}','${esc(c)}')"><b>${esc(P[c].d||c)}</b><small>Código: ${esc(c)}${g?" · Saldo em "+esc(g)+": "+bal(c,g):""}</small></div>`).join("")||(v?'<div class="ri"><small>Nenhuma peça encontrada</small></div>':"");pkH(id)}
+function pkP(id,c){const a=$(id+"c"),b=$(id+"d");a.value=c;b.value=D.parts[c].d;a.dataset.ok=b.dataset.ok="1";$(id+"r").innerHTML="";pkH(id)}
 /* SALDO */
-function vSaldo(){
- const cards=G().map(g=>{let t=0,n=0;for(const c in D.parts){const x=bal(c,g);t+=x;if(x>0)n++}return `<div class="k ${sg===g?"on":""}" onclick="sg=sg==='${g}'?'':'${g}';render()"><b>${g}</b><span>${t} un.</span><small>${n} peça(s) com saldo</small></div>`}).join("");
- return `<div class="ks">${cards}</div><div class="p"><div class="bar"><label>Buscar peça<input value="${esc(sq)}" oninput="sq=this.value;$('sb').innerHTML=rowsS()" placeholder="código ou descrição"></label><label>Mostrar<select onchange="sf=this.value;$('sb').innerHTML=rowsS()"><option value="">Todas as peças</option><option value="pos" ${sf==="pos"?"selected":""}>Só com saldo</option><option value="zero" ${sf==="zero"?"selected":""}>Zeradas</option></select></label></div><div class="w"><table><thead><tr><th>Código</th><th>Peça</th><th>Mín.</th>${(sg?[sg]:G()).map(g=>`<th>${g}</th>`).join("")}${sg?"":"<th>Total</th>"}</tr></thead><tbody id="sb">${rowsS()}</tbody></table></div><p class="hint">Vermelho: zerado · Amarelo: no mínimo ou abaixo · Verde: ok. Clique numa garagem para filtrar.</p></div>`}
-function rowsS(){const gs=sg?[sg]:G(),q=sq.toLowerCase();
- return Object.keys(D.parts).sort().filter(c=>(c+" "+D.parts[c].d).toLowerCase().includes(q)).map(c=>{const p=D.parts[c],v=gs.map(g=>bal(c,g)),t=v.reduce((a,b)=>a+b,0);return{c,p,v,t}}).filter(r=>!sf||(sf==="pos"?r.t>0:r.t<=0)).map(r=>`<tr><td><b>${esc(r.c)}</b></td><td>${esc(r.p.d)}</td><td>${r.p.m}</td>${r.v.map(x=>`<td class="${x<=0?"er":x<=r.p.m?"wa":"ok"}">${x}</td>`).join("")}${sg?"":`<td><b>${r.t}</b></td>`}</tr>`).join("")||'<tr><td colspan=9>Nenhuma peça.</td></tr>'}
-/* ENTRADA / SAÍDA */
-function vEnt(){return `<div class="p"><h2>Dar entrada de peças</h2><div class="f"><label>Garagem<select id="eg">${opts(G())}</select></label><label>Código da peça<input id="ec" list="pl" oninput="fill()" autocomplete="off"></label><label>Descrição<input id="ed"></label><label>Estoque mínimo<input id="em" type="number" min="0" value="0"></label><label>Quantidade<input id="eq" type="number" min="1"></label><label>NF / Observação<input id="en"></label></div><button class="b" onclick="addE()">Registrar entrada</button></div>${dl()}`}
-function fill(){const p=D.parts[$("ec").value.trim()];if(p){$("ed").value=p.d;$("em").value=p.m}}
-function addE(){const c=$("ec").value.trim(),q=parseInt($("eq").value),d=$("ed").value.trim();
- if(!c||!(q>0))return msg("Informe código e quantidade.",1);if(!D.parts[c]&&!d)return msg("Peça nova: informe a descrição.",1);
- D.parts[c]={d:d||D.parts[c].d,m:parseInt($("em").value)||0,t:Date.now()};log("entrada",c,$("eg").value,q,$("en").value);save();msg("Entrada registrada.");render()}
-function vSai(){return `<div class="p"><h2>Dar saída de peças</h2><div class="f"><label>Garagem<select id="sg2" onchange="hint()">${opts(G())}</select></label><label>Código da peça<input id="sc" list="pl" oninput="hint()" autocomplete="off"></label><label>Quantidade<input id="sq2" type="number" min="1"></label><label>OS / Prefixo do veículo<input id="sr"></label><label>Técnico<input id="st2" value="${esc(cfg.u||"")}"></label></div><p class="hint" id="sh"></p><button class="b r" onclick="addS()">Registrar saída</button></div>${dl()}`}
-function hint(){const c=$("sc").value.trim(),p=D.parts[c];$("sh").textContent=p?`${p.d} — saldo em ${$("sg2").value}: ${bal(c,$("sg2").value)}`:""}
-function addS(){const c=$("sc").value.trim(),g=$("sg2").value,q=parseInt($("sq2").value);
- if(!D.parts[c])return msg("Peça não cadastrada.",1);if(!(q>0))return msg("Informe a quantidade.",1);if(q>bal(c,g))return msg(`Saldo insuficiente (${bal(c,g)}).`,1);
- log("saida",c,g,-q,[$("sr").value&&"OS/Veíc.: "+$("sr").value,$("st2").value&&"Téc.: "+$("st2").value].filter(Boolean).join(" · "));save();msg("Saída registrada.");render()}
+function visG(){return myG().filter(g=>gsel[g]!==false&&(sz||Object.keys(D.parts).some(c=>bal(c,g)>0)))}
+function vSaldo(){const mg=myG().filter(g=>sz||Object.keys(D.parts).some(c=>bal(c,g)>0)),vg=visG(),so=(v,l)=>`<option value="${v}" ${sf===v?"selected":""}>${l}</option>`;
+ const cards=vg.map(g=>{let t=0,n=0;for(const c in D.parts){const x=bal(c,g);t+=x;if(x>0)n++}return `<div class="k"><b>${esc(g)}</b><span>${t} un.</span><small>${n} peça(s) com saldo</small></div>`}).join("");
+ return `<div class="p"><h2>Garagens exibidas (só as com saldo)</h2><div>${mg.map(g=>`<label class="ch"><input type="checkbox" ${gsel[g]!==false?"checked":""} onchange="gsel['${g}']=this.checked;render()">${esc(g)}</label>`).join("")}<label class="ch"><input type="checkbox" ${sz?"checked":""} onchange="sz=this.checked;render()">Mostrar também sem saldo</label></div></div><div class="ks">${cards}</div><div class="p"><div class="bar">${fbox("fsq","Buscar por nome ou código",sq,v=>{sq=v;$("sb").innerHTML=rowsS()})}<label>Mostrar<select onchange="sf=this.value;render()">${so("","Todas as peças")}${so("pos","Só com saldo")}${so("zero","Zeradas")}${so("lt","Abaixo de N unidades")}</select></label>${sf==="lt"?`<label>Menos de (unidades)<input type="number" min="1" value="${sn}" oninput="sn=+this.value||0;$('sb').innerHTML=rowsS()"></label>`:""}</div><div class="w"><table><thead><tr><th>Código</th><th>Peça</th>${vg.map(g=>`<th>${esc(g)}</th>`).join("")}<th>Total</th></tr></thead><tbody id="sb">${rowsS()}</tbody></table></div><p class="hint">Peças reservadas em solicitações de transferência pendentes já saem do saldo da garagem que as fornece.</p></div>`}
+function rowsS(){const gs=visG(),q=sq.toLowerCase();
+ return Object.keys(D.parts).sort().filter(c=>mt(c,sq)).map(c=>{const v=gs.map(g=>bal(c,g));return{c,v,t:v.reduce((a,b)=>a+b,0)}}).filter(r=>!sf||(sf==="pos"?r.t>0:sf==="zero"?r.t<=0:r.t<sn)).map(r=>`<tr><td><b>${esc(r.c)}</b></td><td>${esc(D.parts[r.c].d)}</td>${r.v.map(x=>`<td class="${x<=0?"er":sf==="lt"&&x<sn?"wa":"ok"}">${x}</td>`).join("")}<td><b>${r.t}</b></td></tr>`).join("")||'<tr><td colspan=9>Nenhuma peça.</td></tr>'}
+/* ENTRADA */
+function vEnt(){return `<div class="p"><h2>Dar entrada de peças</h2><div class="f"><label>Garagem<select id="eg">${opts(myG())}</select></label>${pk("pe")}<label>Quantidade<input id="eq" type="number" min="1" inputmode="numeric"></label><label>NF / Observação<input id="en"></label></div><button class="b" onclick="addE()">Registrar entrada</button></div>`}
+function addE(){const c=$("pec").value.trim(),d=$("ped").value.trim(),q=parseInt($("eq").value);
+ if(!c||!(q>0))return msg("Informe a peça e a quantidade.",1);
+ if(!D.parts[c]){if(!can("addp"))return msg("Você não tem permissão para cadastrar peças novas.",1);if(!d)return msg("Peça nova: informe a descrição.",1);D.parts[c]={d,t:Date.now()}}
+ log("entrada",c,$("eg").value,q,$("en").value);save();msg("Entrada registrada.");render()}
+/* SAÍDA */
+function vSai(){return `<div class="p"><h2>Dar saída de peças</h2><div class="f"><label>Garagem<select id="sg2" onchange="hint()">${opts(myG())}</select></label>${pk("ps")}<label>Quantidade<input id="sq2" type="number" min="1" inputmode="numeric"></label><label>Destino da peça<select id="sd" onchange="$('sol').style.display=this.value==='os'?'':'none'"><option value="os">OS / Prefixo do veículo</option><option value="gar">Estoque da própria garagem</option></select></label><label id="sol">OS / Prefixo<input id="sr"></label><label>Técnico<input id="st2" value="${esc(me)}"></label></div><p class="hint" id="sh"></p><button class="b r" onclick="addS()">Registrar saída</button></div>`}
+function hint(){const c=$("psc").value.trim(),p=D.parts[c];$("sh").textContent=p?`Saldo em ${$("sg2").value}: ${bal(c,$("sg2").value)}`:""}
+function addS(){const c=$("psc").value.trim(),g=$("sg2").value,q=parseInt($("sq2").value),os=$("sd").value==="os";
+ if(!D.parts[c])return msg("Escolha uma peça cadastrada.",1);if(!(q>0))return msg("Informe a quantidade.",1);if(q>bal(c,g))return msg(`Saldo insuficiente (${bal(c,g)}).`,1);
+ log("saida",c,g,-q,[os?"OS/Veíc.: "+$("sr").value:"Destino: estoque da própria garagem",$("st2").value&&"Téc.: "+$("st2").value].filter(Boolean).join(" · "));save();msg("Saída registrada.");render()}
 /* CONFERÊNCIA */
-function vConf(){const rows=Object.keys(D.parts).sort().map(c=>`<tr><td><b>${esc(c)}</b></td><td>${esc(D.parts[c].d)}</td><td>${bal(c,cg)}</td><td><input class="cc" type="number" min="0" data-c="${esc(c)}" oninput="df(this)"></td><td></td></tr>`).join("");
- return `<div class="p"><h2>Conferência de estoque</h2><div class="bar"><label>Garagem<select onchange="cg=this.value;render()">${opts(G(),0,cg)}</select></label></div><p class="hint">Digite a quantidade contada. Peças em branco não são alteradas. Ao aplicar, as diferenças viram ajustes no histórico.</p><div class="w"><table><thead><tr><th>Código</th><th>Peça</th><th>Sistema</th><th>Contado</th><th>Diferença</th></tr></thead><tbody>${rows}</tbody></table></div><br><button class="b v" onclick="applyC()">Aplicar ajustes</button></div>`}
+function vConf(){const mg=myG();if(!mg.includes(cg))cg=mg[0]||"";if(!mg.length)return '<div class="p">Você não tem garagem atribuída. Fale com o administrador.</div>';
+ const rows=Object.keys(D.parts).sort().map(c=>`<tr data-s="${esc(nz(c+" "+D.parts[c].d))}"><td><b>${esc(c)}</b></td><td>${esc(D.parts[c].d)}</td><td>${bal(c,cg)}</td><td><input class="cc" type="number" min="0" inputmode="numeric" data-c="${esc(c)}" oninput="df(this)"></td><td></td></tr>`).join("");
+ return `<div class="p"><h2>Conferência de estoque</h2><div class="bar"><label>Garagem<select onchange="cg=this.value;render()">${opts(mg,0,cg)}</select></label>${fbox("fcq","Buscar por nome ou código","",fc)}</div><p class="hint">Digite a quantidade contada. Peças em branco não são alteradas. Para finalizar será pedida a sua senha.</p><div class="w"><table><thead><tr><th>Código</th><th>Peça</th><th>Sistema</th><th>Contado</th><th>Diferença</th></tr></thead><tbody id="cb">${rows}</tbody></table></div><br><button class="b v" onclick="applyC()">Finalizar conferência</button></div>`}
+function fc(v){const k=nz(v).split(/\s+/).filter(Boolean);document.querySelectorAll("#cb tr").forEach(r=>r.hidden=!k.every(x=>r.dataset.s.includes(x)))}
 function df(i){const d=i.value===""?"":parseInt(i.value)-bal(i.dataset.c,cg),t=i.parentNode.nextSibling;t.innerHTML=d===""?"":`<span class="${d>0?"pos":d<0?"neg":""}">${d>0?"+":""}${d}</span>`}
-function applyC(){let n=0;document.querySelectorAll(".cc").forEach(i=>{if(i.value==="")return;const d=parseInt(i.value)-bal(i.dataset.c,cg);if(d){log("conf",i.dataset.c,cg,d,"Conferência: contado "+i.value);n++}});save();msg(n?`${n} ajuste(s) aplicado(s).`:"Nenhuma divergência.");render()}
-/* TRANSFERÊNCIA */
-function vTr(){const g=G();return `<div class="p"><h2>Transferir peças para outra garagem</h2><div class="f"><label>Origem<select id="to" onchange="hintT()">${opts(g)}</select></label><label>Destino<select id="td">${opts(g,0,g[1])}</select></label><label>Código da peça<input id="tc" list="pl" oninput="hintT()" autocomplete="off"></label><label>Quantidade<input id="tq" type="number" min="1"></label><label>Observação<input id="tn"></label></div><p class="hint" id="th"></p><button class="b v" onclick="addT()">Transferir</button></div>${dl()}`}
-function hintT(){const c=$("tc").value.trim(),p=D.parts[c];$("th").textContent=p?`${p.d} — saldo em ${$("to").value}: ${bal(c,$("to").value)}`:""}
-function addT(){const c=$("tc").value.trim(),o=$("to").value,d=$("td").value,q=parseInt($("tq").value),n=$("tn").value;
- if(!D.parts[c])return msg("Peça não cadastrada.",1);if(o===d)return msg("Origem e destino iguais.",1);if(!(q>0))return msg("Informe a quantidade.",1);if(q>bal(c,o))return msg(`Saldo insuficiente em ${o} (${bal(c,o)}).`,1);
- log("transf",c,o,-q,"→ "+d+(n?" · "+n:""));log("transf",c,d,q,"← "+o+(n?" · "+n:""));save();msg("Transferência registrada.");render()}
+async function applyC(){const L=[];document.querySelectorAll(".cc").forEach(i=>{if(i.value==="")return;const d=parseInt(i.value)-bal(i.dataset.c,cg);if(d)L.push([i.dataset.c,d,i.value])});
+ if(!L.length)return msg("Nenhuma divergência encontrada.");
+ const p=await askPw(`Confirme sua senha para finalizar (${L.length} ajuste(s) em ${esc(cg)})`);if(p===null)return;if(!await chk(p))return msg("Senha incorreta.",1);
+ L.forEach(([c,d,v])=>log("conf",c,cg,d,"Conferência: contado "+v));save();msg(`${L.length} ajuste(s) aplicado(s).`);render()}
+/* SOLICITAÇÃO DE TRANSFERÊNCIA: reserva no estoque de quem fornece até o responsável confirmar */
+let ln=-1;
+const canAp=r=>isM()||(can("aprov")&&((U()||{}).g||[]).includes(r.para));
+const apv=g=>Object.keys(D.users).filter(n=>{const u=D.users[n];return!u.off&&u.g.includes(g)&&(D.roles[u.r]||{}).aprov});
+const pendMine=()=>(me&&(isM()||U()))?Object.values(D.req).filter(r=>r.st==="pend"&&canAp(r)):[];
+function vTr(){const o=isM()?G():(U().g||[]),g=G(),A=Object.values(D.req),R=A.filter(r=>isM()||can("todas")||r.by===me||canAp(r)).sort((a,b)=>b.t-a.t),P=R.filter(r=>r.st==="pend"&&canAp(r));
+ const stk=r=>bal(r.c,r.para)+A.filter(x=>x.st==="pend"&&x.c===r.c&&x.para===r.para).reduce((s,x)=>s+x.q,0);
+ const nm=r=>`<b>${esc(r.c)}</b> ${esc((D.parts[r.c]||{d:""}).d)}`,stl={pend:"⏳ Aguardando",ok:"✅ Aprovada",neg:"❌ Recusada",canc:"🚫 Cancelada"};
+ return `${P.length?`<div class="p"><h2>📨 Solicitações para você confirmar</h2>${P.map(r=>`<div class="k" style="cursor:default;margin-top:8px;border-left-color:var(--wa)"><div><b>${esc(r.de)}</b> (${esc(r.by)}) está pedindo: ${nm(r)}</div><div>Quantidade solicitada: <b>${r.q}</b> · Em estoque na ${esc(r.para)}: <b>${stk(r)}</b> un.</div><div>Motivo: ${esc(r.mo)}</div><div class="bar" style="margin:8px 0 0"><button class="b" onclick="apr('${r.id}')">Confirmar</button><button class="b r" onclick="rej('${r.id}')">Recusar</button></div><small>Ao confirmar, a peça sai da reserva e entra no estoque de ${esc(r.de)}.</small></div>`).join("")}</div>`:""}
+<div class="p"><h2>Nova solicitação de transferência</h2><div class="f"><label>Minha garagem (quem recebe)<select id="to" ${!isM()&&o.length===1?"disabled":""}>${opts(o)}</select></label><label>Pedir à garagem<select id="td" onchange="hintT()">${opts(g)}</select></label>${pk("pt")}<label>Quantidade<input id="tq" type="number" min="1" inputmode="numeric"></label><label>Motivo / observação<input id="tn"></label></div><p class="hint" id="th"></p><button class="b v" onclick="addT()">Enviar solicitação</button><p class="hint" style="margin-top:8px">Todos os campos são obrigatórios. A peça fica reservada na garagem pedida até o responsável confirmar. Você só pode pedir peças para a sua própria garagem; outras operações devem ser pedidas ao consultor técnico.</p></div>
+<div class="p"><h2>Solicitações</h2><div class="w"><table><thead><tr><th>Data</th><th>Garagens</th><th>Peça</th><th>Qtd</th><th>Motivo</th><th>Status</th><th></th></tr></thead><tbody>${R.map(r=>`<tr><td>${fd(r.at)}</td><td>${esc(r.para)} → ${esc(r.de)}<br><small>${esc(r.by)}</small></td><td>${nm(r)}</td><td>${r.q}</td><td>${esc(r.mo)}</td><td>${stl[r.st]}${r.dec?`<br><small>${esc(r.dec)}${r.nota?": "+esc(r.nota):""}</small>`:""}</td><td>${r.st==="pend"&&(r.by===me||isM())?`<button class="b s" onclick="rej('${r.id}',1)">Cancelar</button>`:""}</td></tr>`).join("")||'<tr><td colspan=7>Nenhuma solicitação.</td></tr>'}</tbody></table></div></div>`}
+function hintT(){const c=$("ptc").value.trim(),g=$("td").value;$("th").textContent=D.parts[c]?`Disponível em ${g}: ${bal(c,g)} un.`:""}
+function addT(){const c=$("ptc").value.trim(),d=$("ptd").value.trim(),de=$("to").value,pa=$("td").value,q=parseInt($("tq").value),mo=$("tn").value.trim();
+ if(!D.parts[c]||!d||!(q>0)||!mo||!de||!pa)return msg("Preencha tudo: código, descrição, quantidade e motivo.",1);
+ if(!isM()&&!(U().g||[]).includes(de))return msg("Você só pode solicitar peças para a sua própria garagem. Outras operações devem ser pedidas ao consultor técnico.",1);
+ if(de===pa)return msg("A garagem que recebe e a que fornece não podem ser a mesma.",1);
+ if(!apv(pa).length)return msg(`A garagem ${pa} ainda não tem responsável definido, então a solicitação ainda não é válida.`,1);
+ if(q>bal(c,pa))return msg(`${pa} só tem ${bal(c,pa)} un. disponível.`,1);
+ const id=uid();D.req[id]={id,t:Date.now(),at:now(),c,q,de,para:pa,by:me,mo,st:"pend"};
+ log("reserva",c,pa,-q,`Reservado para ${de} (pedido de ${me}): ${mo}`,id,"rq-"+id+"-res");save();msg("Solicitação enviada. A peça ficou reservada.");render()}
+function apr(i){const r=D.req[i];if(!r||r.st!=="pend"||!canAp(r))return;r.st="ok";r.dec=me;r.t=Date.now();
+ log("transf",r.c,r.de,r.q,`← ${r.para} (pedido de ${r.by}, confirmado por ${me})`,i,"rq-"+i+"-ok");save();msg("Transferência confirmada.");render()}
+function rej(i,canc){const r=D.req[i];if(!r||r.st!=="pend")return;if(canc?!(r.by===me||isM()):!canAp(r))return;
+ const n=(prompt(canc?"Por que está cancelando esta solicitação? (obrigatório)":"Motivo da recusa (obrigatório):")||"").trim();
+ if(!n)return msg("Informe o motivo para "+(canc?"cancelar":"recusar")+".",1);
+ r.st=canc?"canc":"neg";r.dec=me;r.nota=n;r.t=Date.now();
+ log(canc?"cancel":"recusa",r.c,r.para,r.q,(canc?"Cancelada":"Recusada")+" por "+me+" — reserva devolvida. Motivo: "+n,i,"rq-"+i+"-dev");save();msg("Registrado. A reserva voltou para o estoque de "+r.para+".");render()}
+/* TRANSFERÊNCIA DIRETA (consultor técnico): qualquer garagem para qualquer garagem, com confirmação extra */
+function vDir(){const o=myG(),g=G();return `<div class="p"><h2>Transferência direta entre garagens</h2><div class="f"><label>Origem (sai daqui)<select id="do" onchange="hintD()">${opts(o)}</select></label><label>Destino (entra aqui)<select id="dd">${opts(g,0,g.find(x=>x!==o[0]))}</select></label>${pk("pd")}<label>Quantidade<input id="dq" type="number" min="1" inputmode="numeric"></label><label>Motivo / observação<input id="dn"></label></div><p class="hint" id="dh"></p><button class="b v" onclick="addD()">Transferir</button><p class="hint" style="margin-top:8px">Todos os campos são obrigatórios. A peça sai e entra na hora, após uma confirmação extra.</p></div>`}
+function hintD(){const c=$("pdc").value.trim(),g=$("do").value;$("dh").textContent=D.parts[c]?`Disponível em ${g}: ${bal(c,g)} un.`:""}
+function addD(){if(!can("t_dir"))return;const c=$("pdc").value.trim(),d=$("pdd").value.trim(),o=$("do").value,p=$("dd").value,q=parseInt($("dq").value),n=$("dn").value.trim();
+ if(!D.parts[c]||!d||!(q>0)||!n||!o||!p)return msg("Preencha tudo: código, descrição, quantidade e motivo.",1);
+ if(o===p)return msg("Origem e destino iguais.",1);if(q>bal(c,o))return msg(`Saldo insuficiente em ${o} (${bal(c,o)}).`,1);
+ if(!confirm(`Tem certeza que deseja confirmar essa transferência de peça?\n\n${q} un. de ${c} — ${d}\nDe: ${o}\nPara: ${p}\nMotivo: ${n}`))return;
+ log("transf",c,o,-q,`→ ${p} · Transferência direta: ${n}`);log("transf",c,p,q,`← ${o} · Transferência direta: ${n}`);save();msg("Transferência direta realizada.");render()}
 /* HISTÓRICO */
-function vHist(){const rv=new Set(D.log.filter(m=>m.r).map(m=>m.r));
- const r=D.log.filter(m=>(!hk||m.k===hk)&&(!hg||m.g===hg)&&(!hq||(m.c+" "+m.n+" "+(D.parts[m.c]||{d:""}).d).toLowerCase().includes(hq.toLowerCase()))).reverse().slice(0,300);
- return `<div class="p"><h2>Histórico de movimentações</h2><div class="bar"><label>Tipo<select onchange="hk=this.value;render()"><option value="">Todos</option>${Object.keys(KN).map(k=>`<option value="${k}" ${hk===k?"selected":""}>${KN[k]}</option>`).join("")}</select></label><label>Garagem<select onchange="hg=this.value;render()">${opts(G(),1,hg)}</select></label><label>Buscar<input value="${esc(hq)}" onchange="hq=this.value;render()" placeholder="peça, OS, técnico…"></label></div><div class="w"><table><thead><tr><th>Data</th><th>Tipo</th><th>Garagem</th><th>Peça</th><th>Qtd</th><th>Detalhe</th><th>Usuário</th><th></th></tr></thead><tbody>${r.map(m=>`<tr><td>${fd(m.t)}</td><td>${KN[m.k]}</td><td>${esc(m.g)}</td><td>${esc(m.c)}</td><td class="${m.q>0?"pos":"neg"}">${m.q>0?"+":""}${m.q}</td><td>${esc(m.n)}</td><td>${esc(m.u||"")}</td><td>${m.k==="estorno"||rv.has(m.i)?"":`<button class="b s" title="Estornar" onclick="est('${m.i}')">↩</button>`}</td></tr>`).join("")||'<tr><td colspan=8>Sem movimentações.</td></tr>'}</tbody></table></div></div>`}
-function est(i){const m=D.log.find(x=>x.i===i);if(!m||!confirm(`Estornar ${m.q>0?"+":""}${m.q} de ${m.c} em ${m.g}?`))return;log("estorno",m.c,m.g,-m.q,"Estorno de "+KN[m.k]+" de "+fd(m.t),m.i);save();render()}
-/* PEÇAS */
-function vPec(){return `<div class="p"><h2>Cadastro de peças</h2><div class="bar"><label>Buscar<input value="${esc(pq)}" oninput="pq=this.value;$('pb').innerHTML=rowsP()"></label></div><p class="hint">Edite descrição e mínimo direto na tabela. Peças novas entram pela aba Entrada.</p><div class="w"><table><thead><tr><th>Código</th><th>Descrição</th><th>Mínimo</th></tr></thead><tbody id="pb">${rowsP()}</tbody></table></div></div>`}
-function rowsP(){const q=pq.toLowerCase();return Object.keys(D.parts).sort().filter(c=>(c+" "+D.parts[c].d).toLowerCase().includes(q)).map(c=>`<tr><td><b>${esc(c)}</b></td><td><input value="${esc(D.parts[c].d)}" style="min-width:280px" onchange="ep('${c}','d',this.value)"></td><td><input type="number" min="0" style="width:80px" value="${D.parts[c].m}" onchange="ep('${c}','m',parseInt(this.value)||0)"></td></tr>`).join("")}
-function ep(c,f,v){D.parts[c][f]=v;D.parts[c].t=Date.now();save()}
-/* AJUSTES */
-function vAj(){return `<div class="p"><h2>Sincronização com o GitHub</h2><p class="hint">Use um token com permissão de Contents (leitura e escrita) só no repositório de dados privado. Fica salvo apenas neste aparelho.</p><div class="f"><label>Seu nome (aparece nas movimentações)<input id="au" value="${esc(cfg.u||"")}"></label><label>Repositório de dados (usuario/repositorio)<input id="ar" value="${esc(cfg.repo||"")}"></label><label>Arquivo<input id="ap" value="${esc(cfg.path||"estoque.json")}"></label><label>Token do GitHub<input id="at" type="password" value="${esc(cfg.tk||"")}"></label></div><button class="b" onclick="saveCfg()">Salvar e sincronizar</button></div>
+function hv(m){const s=isM()?"all":(D.roles[U().r]||{}).h||"own";return s==="all"||(s==="gar"?myG().includes(m.g):m.u===me||(m.r&&D.req[m.r]&&D.req[m.r].by===me))}
+function rowsH(){const rv=new Set(D.log.filter(m=>m.r).map(m=>m.r));
+ return D.log.filter(hv).filter(m=>(!hk||m.k===hk)&&(!hg||m.g===hg)&&(!hq||tk(hq,m.c+" "+m.n+" "+m.u+" "+(D.parts[m.c]||{d:""}).d))).reverse().slice(0,300).map(m=>`<tr><td>${fd(m.t)}</td><td>${KN[m.k]}</td><td>${esc(m.g)}</td><td>${esc(m.c)}<br><small>${esc((D.parts[m.c]||{d:""}).d)}</small></td><td class="${m.q>0?"pos":"neg"}">${m.q>0?"+":""}${m.q}</td><td>${esc(m.n)}</td><td>${esc(m.u||"")}</td><td>${m.k==="estorno"||rv.has(m.i)||!can("est")||["reserva","recusa","cancel"].includes(m.k)?"":`<button class="b s" title="Estornar" onclick="est('${m.i}')">↩</button>`}</td></tr>`).join("")||'<tr><td colspan=8>Sem movimentações.</td></tr>'}
+function vHist(){const L=D.log.filter(hv);
+ return `<div class="p"><h2>Histórico de movimentações</h2><div class="bar"><label>Tipo<select onchange="hk=this.value;render()"><option value="">Todos</option>${Object.keys(KN).map(k=>`<option value="${k}" ${hk===k?"selected":""}>${KN[k]}</option>`).join("")}</select></label><label>Garagem<select onchange="hg=this.value;render()">${opts([...new Set(L.map(m=>m.g))],1,hg)}</select></label>${fbox("fhq","Buscar por peça, OS, usuário…",hq,v=>{hq=v;$("hb").innerHTML=rowsH()})}</div><div class="w"><table><thead><tr><th>Data</th><th>Tipo</th><th>Garagem</th><th>Peça</th><th>Qtd</th><th>Detalhe</th><th>Usuário</th><th></th></tr></thead><tbody id="hb">${rowsH()}</tbody></table></div></div>`}
+function est(i){const m=D.log.find(x=>x.i===i);if(!m||!can("est")||!confirm(`Estornar ${m.q>0?"+":""}${m.q} de ${m.c} em ${m.g}?`))return;log("estorno",m.c,m.g,-m.q,"Estorno de "+KN[m.k]+" de "+fd(m.t),m.i);save();render()}
+/* PEÇAS: o código nunca é alterado; só a descrição */
+function vPec(){return `<div class="p"><h2>Cadastro de peças</h2>${can("addp")?`<div class="f"><label>Novo código<input id="nc"></label><label>Descrição<input id="nd"></label><label>&nbsp;<button class="b" onclick="addP()">Adicionar peça</button></label></div><hr>`:""}<div class="bar">${fbox("fpq","Buscar por nome ou código",pq,v=>{pq=v;$("pb").innerHTML=rowsP()})}</div><p class="hint">${can("edp")?"Corrija a descrição direto na tabela. O código não pode ser alterado.":"Somente consulta."}</p><div class="w"><table><thead><tr><th>Código</th><th>Descrição</th></tr></thead><tbody id="pb">${rowsP()}</tbody></table></div></div>`}
+function rowsP(){const q=pq.toLowerCase();return Object.keys(D.parts).sort().filter(c=>mt(c,pq)).map(c=>`<tr><td><b>${esc(c)}</b></td><td>${can("edp")?`<input value="${esc(D.parts[c].d)}" style="min-width:300px" onchange="ep('${esc(c)}',this.value)">`:esc(D.parts[c].d)}</td></tr>`).join("")}
+function ep(c,v){if(!can("edp"))return;D.parts[c].d=v.trim();D.parts[c].t=Date.now();save();msg("Descrição atualizada.")}
+function addP(){const c=$("nc").value.trim(),d=$("nd").value.trim();if(!c||!d)return msg("Informe código e descrição.",1);if(D.parts[c])return msg("Esse código já existe (o código não pode ser alterado).",1);D.parts[c]={d,t:Date.now()};save();render()}
+/* AJUSTES (administração) */
+function vAj(){const rl=Object.keys(D.roles);if(!D.roles[er])er=rl[0];const R=D.roles[er];
+ return `<div class="p"><h2>Usuários</h2><div class="w"><table><thead><tr><th>Nome</th><th>Cargo</th><th>Garagens</th><th>Ativo</th><th>Senha</th></tr></thead><tbody>${Object.keys(D.users).sort().map(n=>{const u=D.users[n];return `<tr><td><b>${esc(n)}</b></td><td><select onchange="eu('${n}','r',this.value)">${opts(rl,0,u.r)}</select></td><td><details><summary>${u.g.length?esc(u.g.join(", ")):"a definir"}</summary>${G().map(g=>`<label class="ch"><input type="checkbox" ${u.g.includes(g)?"checked":""} onchange="tg('${n}','${g}',this.checked)">${esc(g)}</label>`).join("")}</details></td><td><input type="checkbox" style="width:auto" ${u.off?"":"checked"} onchange="eu('${n}','off',!this.checked)"></td><td><button class="b s" onclick="rp('${n}')">Redefinir</button></td></tr>`}).join("")}</tbody></table></div><div class="bar" style="margin-top:12px"><label>Novo usuário<input id="nu"></label><label>Cargo<select id="nr">${opts(rl)}</select></label><button class="b" style="flex:0 0 auto" onclick="addU()">Adicionar</button></div></div>
+<div class="p"><h2>Perfis e permissões</h2><div class="bar"><label>Perfil<select onchange="er=this.value;render()">${opts(rl,0,er)}</select></label><button class="b s" style="flex:0 0 auto" onclick="newR()">+ Novo perfil (cópia deste)</button></div><div>${Object.keys(PL).map(k=>`<label class="ch"><input type="checkbox" ${R[k]?"checked":""} onchange="pr('${k}',this.checked)">${PL[k]}</label>`).join("")}</div><br><label>Histórico: o que pode ver<select onchange="pr('h',this.value)"><option value="own" ${R.h==="own"?"selected":""}>Só as próprias movimentações</option><option value="gar" ${R.h==="gar"?"selected":""}>Movimentações da(s) sua(s) garagem(ns)</option><option value="all" ${R.h==="all"?"selected":""}>Todas as movimentações</option></select></label></div>
 <div class="p"><h2>Garagens</h2><div class="bar"><label>Nova garagem<input id="ag"></label><button class="b" style="flex:0 0 auto" onclick="addG()">Adicionar</button></div><p class="hint">Atuais: ${G().map(esc).join(", ")}</p></div>
 <div class="p"><h2>Carregar saldo por planilha</h2><p class="hint">Aceita Excel (.xlsx, .xlsm, .xlsb, .xls), OpenDocument (.ods), CSV, TSV e TXT. Também dá para colar células copiadas da planilha.</p><div class="bar"><label>Arquivo<input type="file" id="if" accept=".xlsx,.xlsm,.xlsb,.xls,.ods,.csv,.tsv,.txt" onchange="loadF(this)"></label></div><label>Ou cole aqui<textarea id="it" rows="3"></textarea></label><br><button class="b s" onclick="setIM({Colado:parseT($('it').value)})">Ler texto colado</button><div id="im"></div></div>`}
-function saveCfg(){cfg={u:$("au").value.trim(),repo:$("ar").value.trim(),path:$("ap").value.trim()||"estoque.json",tk:$("at").value.trim()};try{localStorage.setItem("est_cfg",JSON.stringify(cfg))}catch(e){}msg("Salvo.");sync()}
+function eu(n,k,v){D.users[n][k]=v;D.users[n].t=Date.now();save()}
+function tg(n,g,on){const u=D.users[n];u.g=on?[...new Set([...u.g,g])]:u.g.filter(x=>x!==g);u.t=Date.now();save()}
+function rp(n){if(!confirm(`Redefinir a senha de ${n} para o padrão? Ele terá que criar uma nova no próximo acesso.`))return;delete D.users[n].ph;D.users[n].t=Date.now();save();msg(`Senha de ${n} redefinida para ${defPw(n)}.`)}
+function addU(){const n=$("nu").value.trim();if(!n||D.users[n]||n==="Mestre")return msg("Nome vazio ou já existe.",1);D.users[n]={r:$("nr").value,g:[],t:Date.now()};save();render()}
+function pr(k,v){D.roles[er][k]=v;D.roles[er].t=Date.now();save()}
+function newR(){const n=(prompt("Nome do novo perfil:")||"").trim();if(!n||D.roles[n])return;D.roles[n]={...D.roles[er],t:Date.now()};er=n;save();render()}
 function addG(){const g=$("ag").value.trim();if(!g||G().includes(g))return msg("Nome vazio ou já existe.",1);D.g.push(g);save();render()}
 let IM=null;
 function loadF(inp){const f=inp.files[0];if(!f)return;const r=new FileReader();
