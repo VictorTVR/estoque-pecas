@@ -1,4 +1,8 @@
-<!DOCTYPE html><html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"><title>Estoque de Peças</title><style>
+<!DOCTYPE html><html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"><title>Estoque de Peças</title>
+<link rel="manifest" href="manifest.json">
+<link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<meta name="theme-color" content="#2b90d5"><style>
 :root{--bg:#f3f5f8;--cd:#fff;--tx:#1b2430;--mu:#6b7785;--bd:#dde3ea;--pr:#1f6feb;--ok:#2e9e5b;--wa:#e0a100;--er:#d63c3c;--vi:#7a4fd1;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);color-scheme:light}
 @media(prefers-color-scheme:dark){:root:not([data-theme=light]){--bg:#10151c;--cd:#1a212b;--tx:#e8edf3;--mu:#92a0b0;--bd:#2b3644;--pr:#5b9bff;color-scheme:dark}}
 :root[data-theme=dark]{--bg:#10151c;--cd:#1a212b;--tx:#e8edf3;--mu:#92a0b0;--bd:#2b3644;--pr:#5b9bff;color-scheme:dark}
@@ -206,7 +210,7 @@ function render(){
 const cxForm=()=>`<p class="hint">O token fica salvo só neste aparelho. Peça ao administrador o token de acesso.</p><div class="f"><label>Repositório de dados<input id="ar" value="${esc(cfg.repo)}"></label><label>Arquivo<input id="ap" value="${esc(cfg.path)}"></label><label>Token do GitHub<input id="at" type="password" value="${esc(cfg.tk||"")}"></label></div><button class="b" onclick="saveCfg()">Salvar e sincronizar</button>`;
 function vCx(){return `<div class="p"><h2>Conexão com o GitHub (neste aparelho)</h2>${cxForm()}</div>`}
 async function saveCfg(){cfg={repo:$("ar").value.trim(),path:$("ap").value.trim()||"estoque.json",tk:$("at").value.trim()};try{localStorage.setItem("est_cfg",JSON.stringify(cfg))}catch(e){}msg("Salvo.");await sync();render()}
-function vLogin(){return `<div class="p" style="max-width:420px;margin:30px auto"><h2>Entrar</h2><div class="f"><label>Usuário<select id="lu">${opts(["Mestre",...Object.keys(D.users).filter(n=>!D.users[n].off).sort()])}</select></label><label>Senha<input id="lp" type="password" onkeydown="if(event.key==='Enter')doLogin()"></label></div><button class="b" onclick="doLogin()">Entrar</button><p class="hint" style="margin-top:12px">Primeiro acesso: senha = primeira letra do nome + BYD2026 (você define a sua em seguida).</p><details><summary>Conexão com o GitHub deste aparelho</summary>${cxForm()}</details></div>`}
+function vLogin(){return `<div class="p" style="max-width:420px;margin:30px auto"><div style="text-align:center"><img src="icon-192.png" alt="Estoque BYD" width="96" height="96" style="border-radius:22px"><h2 style="margin:10px 0 14px">Estoque de Peças BYD</h2></div><div class="f"><label>Usuário<select id="lu">${opts(["Mestre",...Object.keys(D.users).filter(n=>!D.users[n].off).sort()])}</select></label><label>Senha<input id="lp" type="password" onkeydown="if(event.key==='Enter')doLogin()"></label></div><button class="b" onclick="doLogin()">Entrar</button><p class="hint" style="margin-top:12px">Primeiro acesso: senha = primeira letra do nome + BYD2026 (você define a sua em seguida).</p><details><summary>Conexão com o GitHub deste aparelho</summary>${cxForm()}</details></div>`}
 /* BUSCA DINÂMICA: sugestões enquanto digita (sem acento, várias palavras, qualquer ordem) */
 const nz=s=>String(s).toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"");
 const tk=(q,s)=>{s=nz(s);return nz(q).split(/\s+/).filter(Boolean).every(x=>s.includes(x))};
